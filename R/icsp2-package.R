@@ -1,4 +1,5 @@
 #' @keywords internal
+#' @import survival
 "_PACKAGE"
 
 ## usethis namespace: start

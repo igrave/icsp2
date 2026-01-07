@@ -1,2 +1,4 @@
 ^icsp2\.Rproj$
 ^\.Rproj\.user$
+^\.vscode$
+^debug$

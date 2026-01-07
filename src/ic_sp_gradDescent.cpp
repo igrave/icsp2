@@ -417,6 +417,9 @@ void icm_Abst::gradientDescent_step(){
 double icm_Abst::cal_log_obs(double s1, double s2, double eta){
     double l = baseS2CondS(s1, eta);
     double r = baseS2CondS(s2, eta);
+    if (l - r <= 0){
+       Rprintf("warning: log obs prob calculation <= 0, s1 = %f, s2 = %f, eta = %f, l = %f, r = %f\n", s1, s2, eta, l, r);
+    }
     return(log(l - r) );
 }
 
@@ -567,6 +570,9 @@ void icm_Abst::analytical_dobs_dp(int s){
         int lind =  obs_inf[s][i].l;
         int rind =  obs_inf[s][i].r + 1;
 
+        if (isnan(pob) | isinf(pob)) {
+            throw("Analytical derivative calculation produced NaN pob");
+        }
         // double none, right_only, left_only, both;
         RightOnly[i] = 0;
         Both[i] = 0;
@@ -585,59 +591,8 @@ void icm_Abst::analytical_dobs_dp(int s){
         if (rind < k) {
             //  right side only contribution
             RightOnly[i] = dllk_dp_i(sl, sr, eta, pob, false, true);
-        }
-        
-        // myfile << i << ",";
-        // myfile << std::setprecision(8) << std::fixed << RightOnly[i];
-        // myfile << ",";
-        // myfile << std::setprecision(8) << std::fixed << Both[i];
-        // // myfile << ",";
-        // // myfile << std::setprecision(8) << std::fixed << left_only;
-        // myfile << "\n";
-
-       /*
-        Possibilities:
-        sl ==1 && sr == llk_0 := 0
-        sl < 1 && sr == 0 && p in sl
-        sl < 1 && sr == 0 && p not in sl := 0
-
-        sl == 1 && sr > 0 && p in sr
-        sl == 1 && sr > 0 && p not in sr := 0
-      
-        sl < 1 && sr > 0 && p in sr, in sl
-        sl < 1 && sr > 0 && p in sr, not in sl
-        sl < 1 && sr > 0 && p not in sr, not in sl := 0
-        
-        
-        */
-        
-        // for (int j = 0; j < k; j++) {
-        //     if (lind == 0 && rind == k) {
-        //         continue; // 0
-        //         // base_p_derv[s][j] += none; // 1
-        //     } else if (lind == 0 && j < rind) {
-        //         base_p_derv[s][j] += right_only; // 5
-        //     } else if (lind == 0 && j >= rind) {
-        //         continue; // 0
-        //     } else if (rind == k && j < lind) {
-        //         base_p_derv[s][j] += left_only; //2
-        //     } else if (rind == k && j >= lind) {
-        //         continue; // 0
-        //         //base_p_derv[s][j] += none; // 3
-        //     } else if (j < lind && j < rind) {
-        //         base_p_derv[s][j] += both; // 6
-        //     } else if (j >= lind && j < rind) {
-        //         base_p_derv[s][j] += right_only; // 7
-        //     } else if (j >= lind && j >= rind) {
-        //         continue; // 0
-        //         // base_p_derv[s][j] += none; // 8
-        //     }
-            
-
-        // }
+        }        
     }
-    
-    // myfile.close();
 
     base_p_derv[s].resize(k);
 	
@@ -662,8 +617,5 @@ void icm_Abst::analytical_dobs_dp(int s){
             base_p_derv[s][j] -= RightOnly[lind] * w[s][lind];
             base_p_derv[s][j] += Both[lind] * w[s][lind];
         }
-    }
-
-
-    
+    }    
 }
