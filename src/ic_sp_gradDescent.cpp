@@ -419,6 +419,7 @@ double icm_Abst::cal_log_obs(double s1, double s2, double eta){
     double r = baseS2CondS(s2, eta);
     if (l - r <= 0){
        Rprintf("warning: log obs prob calculation <= 0, s1 = %f, s2 = %f, eta = %f, l = %f, r = %f\n", s1, s2, eta, l, r);
+       throw("Log obs prob calculation -Inf");
     }
     return(log(l - r) );
 }
@@ -570,9 +571,6 @@ void icm_Abst::analytical_dobs_dp(int s){
         int lind =  obs_inf[s][i].l;
         int rind =  obs_inf[s][i].r + 1;
 
-        if (isnan(pob) | isinf(pob)) {
-            throw("Analytical derivative calculation produced NaN pob");
-        }
         // double none, right_only, left_only, both;
         RightOnly[i] = 0;
         Both[i] = 0;

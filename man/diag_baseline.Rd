@@ -43,10 +43,10 @@ far away from the majority of the data.
 }
 \examples{
 data(IR_diabetes)
-fit <- ic_par(cbind(left, right) ~ gender, 
+fit <- ic_par(cbind(left, right) ~ gender,
              data = IR_diabetes)
 
-diag_baseline(fit, lgdLocation = "topright", 
+diag_baseline(fit, lgdLocation = "topright",
              dist = c("exponential", "weibull", "loglogistic"))
 
 }

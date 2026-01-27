@@ -1,16 +1,22 @@
 Package: icsp2
-Title: What the Package Does (One Line, Title Case)
+Title: Stratified interval-censored semi-parametric survival models
 Version: 0.0.0.9000
 Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+    c(
+        person("Isaac", "Gravestock", ,"isaac.gravestock@gmail.com", role = c("aut", "cre")),
+        person("Clifford", "Anderson-Bergman", , role = c("aut"))
+    )
+Description: A modified implementation of the interval-censored proportional hazards model allowing for stratification, based on icenReg.
+URL: github.com/igrave/icsp2
+License: LGPL (>= 2.0, < 3)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
+Depends: 
+    R (>= 4.2.0)
 LinkingTo: 
     Rcpp,
     RcppEigen
 Imports: 
-    Rcpp
+    Rcpp,
+    survival

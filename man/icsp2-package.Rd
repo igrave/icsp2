@@ -4,12 +4,24 @@
 \name{icsp2-package}
 \alias{icsp2}
 \alias{icsp2-package}
-\title{icsp2: What the Package Does (One Line, Title Case)}
+\title{icsp2: Stratified interval-censored semi-parametric survival models}
 \description{
-What the package does (one paragraph).
+A modified implementation of the interval-censored proportional hazards model allowing for stratification, based on icenReg.
+}
+\seealso{
+Useful links:
+\itemize{
+  \item \url{github.com/igrave/icsp2}
+}
+
 }
 \author{
-\strong{Maintainer}: First Last \email{first.last@example.com}
+\strong{Maintainer}: Isaac Gravestock \email{isaac.gravestock@gmail.com}
+
+Authors:
+\itemize{
+  \item Clifford Anderson-Bergman
+}
 
 }
 \keyword{internal}

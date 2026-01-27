@@ -45,7 +45,7 @@ of the baseline distribution of these estimators is still an open question.
 }
 \examples{
 data("IR_diabetes")
-fit <- ic_par(cbind(left, right) ~ gender, 
+fit <- ic_par(cbind(left, right) ~ gender,
                 data = IR_diabetes)
 
 # Getting confidence intervals for survival curves
@@ -56,7 +56,7 @@ diab_cis <- survCIs(fit, newdata)
 diab_cis
 
 # Can add this to any plot
-plot(fit, newdata = newdata, 
+plot(fit, newdata = newdata,
      cis = FALSE)
 # Would have been included by default
 lines(diab_cis, col = c("black", "red"))

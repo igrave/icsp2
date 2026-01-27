@@ -396,12 +396,156 @@ public:
     }
 
 
-    std::vector<double> dllk_dch_i(double ch_l, double ch_r, double eta, double pob, bool left){
-        std::vector<double> ans(2);
-        ans[0] = 0.0;
-        ans[1] = 0.0;
+/* std::vector<double> dllk_dch_i(double ch_l, double ch_r, double eta, double pob, bool left){
+        std::vector<double> ans(9);
+        double d1, d2;
+        
+          double eHl = exp(ch_l);
+          double eHr = exp(ch_r);
+          double eeHr = exp(eHr);
+          double eeHl = exp(eHl);
+          double eEta = exp(eta);
+          double diff_ee = eeHl - eeHr;
+          double inv_diff_ee = 1/diff_ee;
+          double term_r = eeHr + eEta - 1;
+          double term_l = eeHl + eEta - 1;
+        
+        // Special cases:
+        if (left && ch_l == R_NegInf) {
+          d1 = 0;
+          d2 = 0;
+        } else if (!left && ch_r == R_PosInf) {
+          d1 = 0;
+          d2 = 0;
+        } else {
+          // anything common for all calculations?
+          // put calcs back here later
+        
+          if (left) {
+            double inv_term_l = 1/ term_l;
+            if (ch_r == R_PosInf) {
+              d1 = eeHl * eHl * inv_term_l;
+              d2 = eeHl * eHl * (
+                  eeHl * eHl * inv_term_l * inv_term_l -
+                  (1 + eHl) * inv_term_l
+              );
+            } else {
+            
+              d1 = eeHl * eHl * term_r * inv_diff_ee * inv_term_l;
+
+              d2 = eeHl * eHl * (
+                  (diff_ee - eeHr * eHl) * inv_diff_ee * inv_diff_ee +
+                  eeHl * eHl * inv_term_l * inv_term_l -
+                  (1 + eHl) * inv_term_l
+                );
+                }// left special case
+                //end left
+            } else { // right normal case
+              double inv_term_r = 1 / term_r;
+            
+            // do we need special case for ch_l == R_NegInf?
+            d1 = eeHr * eHr * term_l * -inv_diff_ee * inv_term_r;
+            
+            d2 = eeHr * eHr * (
+                -(diff_ee + eeHl * eHr) * inv_diff_ee * inv_diff_ee +
+                eeHr * eHr * inv_term_r*inv_term_r -
+                (1 + eHr) * inv_term_r
+            );
+         }
+        }
+        //ans[0] = eHl;
+        //ans[1] = eeHl;
+        //ans[2] = eHr;
+        //ans[3] = eeHr;
+        //ans[4] = eEta;
+        //ans[5] = 1/term_l;
+        //ans[6] = 1/term_r;
+        ans[0] = d1;
+        ans[1] = d2;
         return(ans);
     };
+ */
+
+  std::vector<double> dllk_dch_i(double ch_l, double ch_r, double eta, double pob, bool left) {
+        std::vector<double> ans(2);
+        double d1 = 0.0, d2 = 0.0;
+        
+        // Define common terms
+        double eHl = exp(ch_l);
+        double eHr = exp(ch_r);
+        double eeHr = exp(eHr);
+        double eeHl = exp(eHl);
+        double eEta = exp(eta);
+        
+        // diff_ee = E_l - E_r (This is practically always negative)
+        double diff_ee = eeHl - eeHr; 
+        double inv_diff_ee = 1.0 / diff_ee;
+        
+        // D terms: D = exp(eta) - 1 + E
+        double term_r = eeHr + eEta - 1.0;
+        double term_l = eeHl + eEta - 1.0;
+        double inv_term_l = 1.0 / term_l;
+        double inv_term_r = 1.0 / term_r;
+
+        // Derivative of E w.r.t H: d(eeH)/dH = eeH * eH
+        double X_l_prime = eeHl * eHl;
+        double X_r_prime = eeHr * eHr;
+
+        if (left) {
+            if (ch_l == R_NegInf) {
+                d1 = 0.0; d2 = 0.0;
+            } else if (ch_r == R_PosInf) {
+                // Case: Right boundary is infinity -> S(Right) = 0
+                // Proportional Odds Survival S(t) = exp(eta) / ( exp(eta) - 1 + exp(exp(H)) )
+                // P = S(Left); log L = eta - log(term_l)
+                // d1 = - exp(eta)/term_l^2 * (eeHl * eHl) * (term_l/exp(eta)) ?? No, simpler:
+                // d/dH log(S(Left)) = - (1/term_l) * (eeHl * eHl)
+                d1 = - X_l_prime * inv_term_l;
+                
+                // d2 = d1 * d/dH[ log(d1) ]
+                // log(|d1|) = H + eH - log(term_l)
+                // deriv = 1 + eH - (eeHl * eHl)/term_l
+                double d_log_d1 = (1.0 + eHl) - (X_l_prime * inv_term_l);
+                d2 = d1 * d_log_d1;
+                
+            } else {
+                // Normal Left Case
+                // d1 = (eeHl * eHl * term_r) / ( (eeHl - eeHr) * term_l )
+                d1 = X_l_prime * term_r * inv_diff_ee * inv_term_l;
+
+                // d2 = d1 * d/dHl [ log |d1| ]
+                // log |d1| = H + eH + log(term_r) - log|diff_ee| - log(term_l)
+                // Note: term_r is constant w.r.t H_l
+                // d/dHl log|d1| = 1 + eHl - d/dHl(log|E_l - E_r|) - d/dHl(log term_l)
+                //               = 1 + eHl - (X_l_prime / diff_ee) - (X_l_prime / term_l)
+                
+                double d_log_d1 = (1.0 + eHl) - (X_l_prime * inv_diff_ee) - (X_l_prime * inv_term_l);
+                d2 = d1 * d_log_d1;
+            }
+        } else { // Right Boundary
+             if (ch_r == R_PosInf) {
+                 d1 = 0.0; d2 = 0.0;
+             } else {
+                 // Normal Right Case
+                 // d1 = - (eeHr * eHr * term_l) / ( (eeHl - eeHr) * term_r )
+                 //    = (eeHr * eHr * term_l) * ( - inv_diff_ee) * inv_term_r
+                 d1 = - X_r_prime * term_l * inv_diff_ee * inv_term_r;
+
+                 // d2 = d1 * d/dHr [ log |d1| ]
+                 // log |d1| = H + eH + const - log|diff_ee| - log(term_r)
+                 // deriv = 1 + eHr - ( - X_r_prime / diff_ee ) - ( X_r_prime / term_r )
+                 // Note: d/dHr(diff_ee) = - X_r_prime. 
+                 // So d/dHr log|diff_ee| = (1/diff_ee) * (-X_r_prime)
+                 
+                 double d_log_d1 = (1.0 + eHr) + (X_r_prime * inv_diff_ee) - (X_r_prime * inv_term_r);
+                 d2 = d1 * d_log_d1;
+             }
+        }
+        ans[0] = d1;
+        ans[1] = d2;
+        return(ans);
+    };
+
 
 
     virtual ~icm_po(){};

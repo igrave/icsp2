@@ -348,6 +348,9 @@ void icm_Abst::analytical_dobs_dch(int s, std::vector<double> &d1, std::vector<d
 
             std::vector<double> derivs(2);
             derivs = dllk_dch_i(chl, chr, eta, obs_inf[s][obs].pob, true);
+            if(std::isnan(derivs[0]) || std::isnan(derivs[1])){
+                Rcpp::Rcout << "NaN detected in analytical_dobs_dch at stratum " << s << ", observation " << obs << std::endl;
+            }
             d1[param] += derivs[0];
             d2[param] += derivs[1];
         }
@@ -362,6 +365,9 @@ void icm_Abst::analytical_dobs_dch(int s, std::vector<double> &d1, std::vector<d
             std::vector<double> derivs(2);
             derivs = dllk_dch_i(chl, chr, eta, obs_inf[s][obs].pob, false);
             
+            if(std::isnan(derivs[0]) || std::isnan(derivs[1])){
+                Rcpp::Rcout << "NaN detected in analytical_dobs_dch at stratum " << s << ", observation " << obs << std::endl;
+            }
             d1[param] += derivs[0];
             d2[param] += derivs[1];
         }
@@ -383,6 +389,7 @@ void icm_Abst::icm_step_s(int s){
         
         std::vector<double> d1;
         std::vector<double> d2;
+        
 
         if (derivMethod == 1) {
             // Use raw numeric derivatives
@@ -390,6 +397,17 @@ void icm_Abst::icm_step_s(int s){
         } else if (derivMethod == 2) {
          // Use raw numeric derivatives
             analytical_dobs_dch(s, d1, d2);
+        } else if (derivMethod == 13) {
+         // Use raw numeric derivatives
+         if (iter == 1) {
+             numericBaseDervsAllRaw(s, d1, d2);
+         } else {
+            analytical_dobs_dch(s, d1, d2);
+         }
+         } else if (derivMethod == 14) {
+         // Use raw numeric derivatives
+             analytical_dobs_dch(s, d1, d2);
+        
         } else if (derivMethod == 11) {
             // Use raw numeric derivatives
             numericBaseDervsAllRaw(s, d1, d2);
@@ -402,6 +420,7 @@ void icm_Abst::icm_step_s(int s){
             return;
         }
      
+
         if (false) {
         std::ofstream myfile; // added "std::"
         myfile.open("dch.csv", std::ios::app); // append mode
@@ -630,17 +649,26 @@ SEXP ic_sp_ch(SEXP Rlind, SEXP Rrind, SEXP Rcovars, SEXP fitType,
     }
     else { Rprintf("fit type not supported\n");return(R_NilValue);}
     optObj->updateCovars = LOGICAL(R_updateCovars)[0] == TRUE;
-    setup_icm(Rlind, Rrind, Rcovars, R_w, R_strata, R_initialRegVals, optObj);
+    double llk_new = R_NegInf;
     
-    optObj->useFullHess = LOGICAL(R_useFullHess)[0] == TRUE;
-    optObj->derivMethod = INTEGER(R_derivMethod)[0];
+    Rcpp::IntegerVector derivOptions(R_derivMethod);
+    for (int derivMethod : derivOptions) {
+        try {
+            setup_icm(Rlind, Rrind, Rcovars, R_w, R_strata, R_initialRegVals, optObj);
     
-    double tol = pow(10.0, -10.0);
-    int maxIter = INTEGER(R_maxiter)[0];
-    int baselineUpdates = INTEGER(R_baselineUpdates)[0];
+            optObj->useFullHess = LOGICAL(R_useFullHess)[0] == TRUE;
+            optObj->derivMethod = derivMethod;//INTEGER(R_derivMethod)[0];
     
-    double llk_new = optObj->run(maxIter, tol, useGD, baselineUpdates);
+            double tol = pow(10.0, -10.0);
+            int maxIter = INTEGER(R_maxiter)[0];
+            int baselineUpdates = INTEGER(R_baselineUpdates)[0];
     
+            llk_new = optObj->run(maxIter, tol, useGD, baselineUpdates);
+            break;
+        } catch (...) {
+           Rprintf("Error encountered with derivative method %d. \n", derivMethod);
+        } 
+    }
     std::vector<std::vector<double>> p_hat; // IG changed to vector of vectors to handle multiple strata
     p_hat.resize(optObj->n_strata);
     optObj->recenterBCH();
@@ -724,7 +752,7 @@ double icm_Abst::run(int maxIter, double tol, bool useGD, int baselineUpdates){
         if(useGD){ gradientDescent_step();}		
         icm_step();
     }
-    
+    bool method14 = false;
     while(iter < maxIter && (llk_new - llk_old) > tol){
         iter++;
         llk_old = llk_new;
@@ -732,10 +760,20 @@ double icm_Abst::run(int maxIter, double tol, bool useGD, int baselineUpdates){
         //Rprintf("%.7f\n", llk_old);
         if(hasCovars && updateCovars){ covar_nr_step(); }
 
+        
+        if (derivMethod == 14 && iter < 2 ) {
+            method14 = true;
+        } else {method14 = false;}
+
         for(int i = 0; i < baselineUpdates; i++)  {
             if(hasCovars){stablizeBCH();}
-            icm_step();
-            if(useGD){ gradientDescent_step(); }
+            if (method14) {
+                if(useGD){ gradientDescent_step(); }
+                icm_step();
+            } else {
+                icm_step();
+                if(useGD){ gradientDescent_step(); }
+            }
         }
             
         llk_new = sum_llk_all();
