@@ -41,13 +41,13 @@ getBS_coef <- function(sampDataEnv, callText = 'ic_ph', other_info) {
   if (is(invertResult, 'try-error')) {
     return(rep(NA, ncol(xMat) - 1))
   }
-  output <- fit_ICPH(
-    sampDataEnv$y,
-    sampDataEnv$x,
-    callText,
-    sampDataEnv$w,
-    sampDataEnv$strata,
-    other_info
+  output <- .fit_ic_sp(
+    y = sampDataEnv$y,
+    x = sampDataEnv$x,
+    model_type = callText,
+    weights = sampDataEnv$w,
+    strata = sampDataEnv$strata,
+    other_info = other_info
   )$coefficients
   return(output)
 }

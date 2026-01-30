@@ -308,10 +308,10 @@ vcov.ic_po <- function(object, constant = 1, ...) {
     other_info <- fit$other_info
     other_info$updateCovars <- FALSE
     other_info$regStart <- beta
-    new_fit <- fit_ICPH(
-      fit$.dataEnv$y,
-      fit$.dataEnv$x,
-      callText = class(fit)[1],
+    new_fit <- .fit_ic_sp(
+      x = fit$.dataEnv$x,
+      y = fit$.dataEnv$y,
+      model_type = class(fit)[1],
       weights = fit$.dataEnv$weights,
       strata = fit$.dataEnv$strata,
       other_info = other_info
@@ -328,10 +328,10 @@ vcov.ic_po <- function(object, constant = 1, ...) {
       other_info <- fit$other_info
       other_info$updateCovars <- FALSE
       other_info$regStart <- beta
-      new_fit <- fit_ICPH(
-        fit$.dataEnv$y,
-        fit$.dataEnv$x,
-        callText = class(fit)[1],
+      new_fit <- .fit_ic_sp(
+        x = fit$.dataEnv$x,
+        y = fit$.dataEnv$y,
+        model_type = class(fit)[1],
         weights = fit$.dataEnv$weights,
         strata = fit$.dataEnv$strata,
         other_info = other_info

@@ -1,5 +1,7 @@
 #' @keywords internal
 #' @import survival
+#' @import stats
+#' @importFrom graphics legend lines
 "_PACKAGE"
 
 ## usethis namespace: start
