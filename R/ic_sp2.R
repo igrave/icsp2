@@ -99,8 +99,9 @@ ic_sp2 <- function(
   } else {
     strata <- factor(rep(1, nrow(mf)))
   }
-  attr(terms, "intercept") <- 0
-  x <- model.matrix(terms, data = mf)
+
+  attr(terms, "intercept") <- 1
+  x <- model.matrix(terms, data = mf)[, -1, drop = FALSE]
 
   call_info = readingCall(call) # TODO do we need this?
 
@@ -141,7 +142,7 @@ ic_sp2 <- function(
   covarOffset <- colMeans(x)
   x <- x - rep(1, nrow(x)) %*% t(covarOffset)
 
-  fitInfo <- .fit_ic_sp(
+  result <- .fit_ic_sp(
     x = x,
     y = response_mat,
     model_type = paste0("ic_", model_type),
@@ -151,38 +152,38 @@ ic_sp2 <- function(
   )
 
   dataEnv <- list()
-  dataEnv[['x']] <- as.matrix(x, nrow = nrow(response_mat))
+  dataEnv[["x"]] <- as.matrix(x, nrow = nrow(response_mat))
   if (ncol(dataEnv$x) == 1) {
-    colnames(dataEnv[['x']]) <- x_names
+    colnames(dataEnv[["x"]]) <- x_names
   }
-  dataEnv[['y']] <- response_mat
-  dataEnv[['strata']] <- strata
-  dataEnv[['weights']] <- weights
+  dataEnv[["y"]] <- response_mat
+  dataEnv[["strata"]] <- strata
+  dataEnv[["weights"]] <- weights
 
   bsMat <- NULL
   covar <- NULL
 
-  names(fitInfo$coefficients) <- x_names
-  fitInfo$covarOffset <- matrix(covarOffset, nrow = 1)
-  fitInfo$var <- covar
-  fitInfo$call = call
-  fitInfo$formula = formula
-  fitInfo$.dataEnv <- new.env()
+  names(result$coefficients) <- x_names
+  result$covarOffset <- matrix(covarOffset, nrow = 1)
+  result$var <- covar
+  result$call <- call
+  result$formula <- formula
+  result$.dataEnv <- new.env()
   if (!missing(data)) {
-    fitInfo$.dataEnv$data = data
+    result$.dataEnv$data = data
   }
-  list2env(dataEnv, envir = fitInfo$.dataEnv)
-  fitInfo$par = 'semi-parametric'
-  fitInfo$model <- model_type
-  fitInfo$reg_pars <- fitInfo$coefficients
-  fitInfo$terms <- call_info$mt
-  fitInfo$xlevels <- .getXlevels(call_info$mt, call_info$mf)
-  if (fitInfo$iterations == settings$maxIter) {
-    warning('Maximum iterations reached in ic_sp.')
+  list2env(dataEnv, envir = result$.dataEnv)
+  result$par = "semi-parametric"
+  result$model <- model_type
+  result$reg_pars <- result$coefficients
+  result$terms <- terms
+  result$xlevels <- .getXlevels(terms, mf)
+  if (result$iterations == settings$maxIter) {
+    warning("Maximum iterations reached.")
   }
-  fitInfo$other_info <- other_info
-
-  return(fitInfo)
+  result$other_info <- other_info
+  class(result) <- c(paste0("ic_sp_", model_type), "ic_sp2")
+  result
 }
 
 
@@ -232,7 +233,7 @@ ic_sp_ph <- ic_sp_po <- ic_sp2
   derivMethod <- other_info$derivMethod
 
   mi_info <- by(y, strata, function(y_s) {
-    findMaximalIntersections(y_s[, 1], y_s[, 2])
+    find_maximal_intersections(y_s[, 1], y_s[, 2])
   })
 
   covars_list <- lapply(split(seq_len(nrow(y)), strata), function(i) {
@@ -268,74 +269,74 @@ ic_sp_ph <- ic_sp_po <- ic_sp2
     as.integer(derivMethod)
   )
   names(c_ans) <- c('p_hat', 'coefficients', 'llk', 'iterations', 'score')
-  myFit <- new(model_type)
-  myFit$p_hat <- c_ans$p_hat
-  myFit$coefficients <- c_ans$coefficients
-  myFit$llk <- c_ans$llk
-  myFit$iterations <- c_ans$iterations
-  myFit$score <- c_ans$score
-  myFit[['T_bull_Intervals']] <- lapply(mi_info, function(mi) {
+  result <- list() #new(model_type)
+  result$p_hat <- lapply(c_ans$p_hat, function(p) p / sum(p))
+  result$coefficients <- c_ans$coefficients
+  result$llk <- c_ans$llk
+  result$iterations <- c_ans$iterations
+  result$score <- c_ans$score
+  result[['T_bull_Intervals']] <- lapply(mi_info, function(mi) {
     rbind(mi[['mi_l']], mi[['mi_r']])
   })
-  myFit$p_hat <- lapply(myFit$p_hat, function(p) p / sum(p))
 
-  return(myFit)
+  return(result)
 }
 
 
 #' Profile Likelihood Covariance for Semi-Parametric Models
 #' @param fit Fitted model object from \code{ic_sp}
 #' @param constant Multiplier for the constant `h_n` in the profile likelihood.
+#'   Either length 1 or length equal to number of regression parameters.
 #' @param ... Additional arguments.
-#' @exportS3Method vcov ic_po
-vcov.ic_po <- function(object, constant = 1, ...) {
+#' @exportS3Method vcov ic_sp2
+vcov.ic_sp2 <- function(object, constant = 1, ...) {
   fit <- object
-  if (!inherits(fit, 'ic_ph') && !inherits(fit, 'ic_po')) {
-    stop('fit must be an object of class ic_ph or ic_po')
+  if (!inherits(fit, "ic_sp_ph") && !inherits(fit, "ic_sp_po")) {
+    stop("Fit must be an object of class ic_sp_ph or ic_sp_po.")
   }
 
   n <- nrow(fit$.dataEnv$data)
   k <- length(fit$coefficients)
+  if (length(constant) == 1) {
+    # constant <- rep(constant, k)[1]
+  } else if (length(constant) != k) {
+    stop(
+      'Constant must be length 1 or length equal to number of regression parameters'
+    )
+  }
   llk_beta <- fit$llk
   llk_beta_k <- numeric(k)
   llk_beta_j_k <- matrix(NA, nrow = k, ncol = k)
 
   h <- constant * sqrt(1 / n)
+
+  call_args <- list(
+    other_info = fit$other_info,
+    x = fit$.dataEnv$x,
+    y = fit$.dataEnv$y,
+    model_type = paste0("ic_", fit$model),
+    weights = fit$.dataEnv$weights,
+    strata = fit$.dataEnv$strata
+  )
+  call_args$other_info$updateCovars <- FALSE
+
   for (i in seq_len(k)) {
+    # fit the model with beta_i + h
     beta <- fit$coefficients
     beta[i] <- beta[i] + h
-    # fit the model with beta_i + h
-    other_info <- fit$other_info
-    other_info$updateCovars <- FALSE
-    other_info$regStart <- beta
-    new_fit <- .fit_ic_sp(
-      x = fit$.dataEnv$x,
-      y = fit$.dataEnv$y,
-      model_type = class(fit)[1],
-      weights = fit$.dataEnv$weights,
-      strata = fit$.dataEnv$strata,
-      other_info = other_info
-    )
+    call_args$other_info$regStart <- beta
+    new_fit <- do.call(.fit_ic_sp, call_args)
     llk_beta_k[i] <- new_fit$llk
   }
 
   for (i in seq_len(k)) {
     for (j in seq(from = i, to = k)) {
+      # fit the model with beta_i + h_i and beta_j + h_j
       beta <- fit$coefficients
       beta[i] <- beta[i] + h
       beta[j] <- beta[j] + h
-      # fit the model with beta_i + h and beta_j + h
-      other_info <- fit$other_info
-      other_info$updateCovars <- FALSE
-      other_info$regStart <- beta
-      new_fit <- .fit_ic_sp(
-        x = fit$.dataEnv$x,
-        y = fit$.dataEnv$y,
-        model_type = class(fit)[1],
-        weights = fit$.dataEnv$weights,
-        strata = fit$.dataEnv$strata,
-        other_info = other_info
-      )
+      call_args$other_info$regStart <- beta
+      new_fit <- do.call(.fit_ic_sp, call_args)
       llk_beta_j_k[i, j] <- new_fit$llk
       if (i != j) {
         llk_beta_j_k[j, i] <- new_fit$llk
@@ -360,4 +361,20 @@ vcov.ic_po <- function(object, constant = 1, ...) {
   result <- -solve(inv_cov)
 
   result
+}
+
+#' Print method for ic_sp2 objects
+#' @param x Fitted model object from \code{ic_sp}
+#' @param ... Additional arguments.
+#' @exportS3Method print ic_sp2
+print.ic_sp2 <- function(x, ...) {
+  cat("Call:\n")
+  print(x$call)
+  cat("\n")
+  cat("Coefficients:\n")
+  # printCoefmat(x$coefficients)
+  print(x$coefficients)
+  cat("\n")
+  cat(paste0("Log-likelihood: ", round(x$llk, 4), "\n"))
+  cat(paste0("Number of iterations: ", x$iterations, "\n"))
 }

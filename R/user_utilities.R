@@ -1248,31 +1248,6 @@ pGeneralGamma <- function(q, mu, s, Q) {
 }
 
 
-icqqplot <- function(par_fit) {
-  spfit <- makeQQFit(par_fit)
-  baseSCurves <- getSCurves(spfit)
-  baseS <- baseSCurves$S_curves$baseline
-  baseUpper <- baseSCurves$Tbull_ints[, 2]
-  baseLower <- baseSCurves$Tbull_ints[, 1]
-
-  parUpperS <- 1 - getFitEsts(fit = par_fit, q = baseUpper)
-  parLowerS <- 1 - getFitEsts(fit = par_fit, q = baseLower)
-
-  plot(
-    baseS,
-    parUpperS,
-    xlim = c(0, 1),
-    ylim = c(0, 1),
-    main = 'QQ Plot',
-    xlab = c('Unconstrained Baseline Survival'),
-    ylab = 'Parametric Survival',
-    type = 's'
-  )
-  lines(baseS, parLowerS, type = 's')
-  lines(c(0, 1), c(0, 1), col = 'red')
-}
-
-
 #' Convert current status data into interval censored format
 #'
 #' @param time           Time of inspection

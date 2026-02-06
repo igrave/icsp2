@@ -11,13 +11,13 @@ adjust_intervals <- function(B = c(0, 1), surv_matrix, eps = 10^-10) {
   surv_matrix
 }
 
-findMaximalIntersections <- function(lower, upper) {
-  allVals <- sort(unique(c(lower, upper)))
-  isLeft <- allVals %in% lower
-  isRight <- allVals %in% upper
-  miList <- .Call("findMI", allVals, isLeft, isRight, lower, upper)
-  names(miList) <- c('l_inds', 'r_inds', 'mi_l', 'mi_r')
-  return(miList)
+find_maximal_intersections <- function(lower, upper) {
+  all_vals <- sort(unique(c(lower, upper)))
+  is_left <- all_vals %in% lower
+  is_right <- all_vals %in% upper
+  mi_list <- .Call("findMI", all_vals, is_left, is_right, lower, upper)
+  names(mi_list) <- c('l_inds', 'r_inds', 'mi_l', 'mi_r')
+  mi_list
 }
 
 
