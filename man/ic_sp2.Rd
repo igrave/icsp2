@@ -2,9 +2,33 @@
 % Please edit documentation in R/ic_sp2.R
 \name{ic_sp2}
 \alias{ic_sp2}
+\alias{ic_sp_ph}
+\alias{ic_sp_po}
 \title{Fit a semi-parametric model for interval-censored data}
 \usage{
 ic_sp2(
+  formula,
+  data,
+  weights,
+  subset,
+  na.action,
+  B = c(0, 1),
+  settings = ic_sp_settings(),
+  model = c("ph", "po")
+)
+
+ic_sp_ph(
+  formula,
+  data,
+  weights,
+  subset,
+  na.action,
+  B = c(0, 1),
+  settings = ic_sp_settings(),
+  model = c("ph", "po")
+)
+
+ic_sp_po(
   formula,
   data,
   weights,

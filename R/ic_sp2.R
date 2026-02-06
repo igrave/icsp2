@@ -186,9 +186,13 @@ ic_sp2 <- function(
   result
 }
 
+#' @rdname ic_sp2
+#' @export
+ic_sp_ph <- ic_sp2
 
-ic_sp_ph <- ic_sp_po <- ic_sp2
-
+#' @rdname ic_sp2
+#' @export
+ic_sp_po <- ic_sp2
 
 #' Fitter function for interval censored semi-parametric models
 #'
@@ -271,6 +275,7 @@ ic_sp_ph <- ic_sp_po <- ic_sp2
   names(c_ans) <- c('p_hat', 'coefficients', 'llk', 'iterations', 'score')
   result <- list() #new(model_type)
   result$p_hat <- lapply(c_ans$p_hat, function(p) p / sum(p))
+  result$s <- lapply(result$p_hat, function(p) 1 - c(0, cumsum(p)))
   result$coefficients <- c_ans$coefficients
   result$llk <- c_ans$llk
   result$iterations <- c_ans$iterations
