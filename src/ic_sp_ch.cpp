@@ -754,7 +754,7 @@ double icm_Abst::run(int maxIter, double tol, bool useGD, int baselineUpdates){
         if(useGD){ gradientDescent_step();}		
         icm_step();
     }
-    bool method14 = false;
+ 
     while(iter < maxIter && (llk_new - llk_old) > tol){
         iter++;
         llk_old = llk_new;
@@ -762,20 +762,10 @@ double icm_Abst::run(int maxIter, double tol, bool useGD, int baselineUpdates){
         //Rprintf("%.7f\n", llk_old);
         if(hasCovars && updateCovars){ covar_nr_step(); }
 
-        
-        if (derivMethod == 14 && iter < 2 ) {
-            method14 = true;
-        } else {method14 = false;}
-
         for(int i = 0; i < baselineUpdates; i++)  {
             if(hasCovars){stablizeBCH();}
-            if (method14) {
-                if(useGD){ gradientDescent_step(); }
-                icm_step();
-            } else {
-                icm_step();
-                if(useGD){ gradientDescent_step(); }
-            }
+            icm_step();
+            if(useGD){ gradientDescent_step(); }
         }
             
         llk_new = sum_llk_all();
