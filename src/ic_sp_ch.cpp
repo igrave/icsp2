@@ -737,14 +737,16 @@ double icm_Abst::run(int maxIter, double tol, bool useGD, int baselineUpdates){
     iter = 0;
     bool metOnce = false;
     double llk_old = R_NegInf;
-    double llk_new = sum_llk_all(); // global log-likelihood
-
+ 
     bool regNon0 = false;
     int reg_k = reg_par.size();
     for(int i = 0; i < reg_k; i++){
         if(reg_par[i] != 0 ){ regNon0 = true; } 
     }
     
+    if(regNon0){update_etas();}
+    double llk_new = sum_llk_all(); // global log-likelihood
+
     if(regNon0){
         if(hasCovars){stablizeBCH();}
         if(useGD){ gradientDescent_step();}
