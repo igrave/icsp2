@@ -52,7 +52,58 @@ lines.ic_sp2 <- function(x, y, type = "s", strata, ...) {
     }),
     recursive = FALSE
   )
-  browser()
+
   .mapply(lines, pars_dots, list())
   invisible(NULL)
+}
+
+#' @exportS3Method range ic_sp2
+range.ic_sp2 <- function(x, na.rm = FALSE, finite = FALSE, strata, ...) {
+  if (!missing(strata)) {
+    strata <- as.integer(strata)
+    stopifnot(strata >= 1 & strata <= length(x$s))
+    y <- x$T_bull_Intervals[strata]
+  } else {
+    y <- x$T_bull_Intervals
+  }
+
+  range(
+    unlist(y),
+    na.rm = na.rm,
+    finite = finite
+  )
+}
+
+#' @exportS3Method plot ic_sp2
+plot.ic_sp2 <- function(
+  x,
+  type = "s",
+  strata,
+  xlab = "Time",
+  ylab = "Survival Probability",
+  ...
+) {
+  pars <- list(...)
+  if (missing(strata)) {
+    strata <- seq_along(x$s)
+  } else {
+    strata <- as.integer(strata)
+    stopifnot(strata >= 1 & strata <= length(x$s))
+  }
+
+  if (!"xlim" %in% names(pars)) {
+    xlim <- range(x, strata = strata, finite = TRUE)
+  } else {
+    xlim <- pars$ylim
+  }
+
+  plot(
+    0:1,
+    xlim = xlim,
+    type = "n",
+    xlab = xlab,
+    ylab = ylab,
+    ...
+  )
+  lines(x, strata = strata, ...)
 }
