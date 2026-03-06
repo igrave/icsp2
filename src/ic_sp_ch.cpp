@@ -634,6 +634,7 @@ void icm_Abst::covar_nr_step(){
 
 
 /*      CALLING ALGORITHM FROM R     */
+// [[Rcpp::export]]
 SEXP ic_sp_ch(SEXP Rlind, SEXP Rrind, SEXP Rcovars, SEXP fitType,
               SEXP R_w, SEXP R_strata, SEXP R_use_GD, SEXP R_maxiter,
               SEXP R_baselineUpdates, SEXP R_useFullHess, SEXP R_updateCovars,
@@ -786,7 +787,7 @@ double icm_Abst::run(int maxIter, double tol, bool useGD, int baselineUpdates){
 
 
 /*      GETTING MAXIMAL INTERSECTIONS       */
-
+// [[Rcpp::export]]
 SEXP findMI(SEXP R_AllVals, SEXP isL, SEXP isR, SEXP lVals, SEXP rVals){
     //NOTE: R_AllVals MUST be sorted!!
     int k = LENGTH(R_AllVals);

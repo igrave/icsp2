@@ -27,19 +27,13 @@ Mice were placed in two different groups: conventional environment or germ free 
 
 \examples{
 head(miceData)
- 
-coxph_fit <- ic_sp(Surv(l, u, type = 'interval2') ~ grp, 
-                    bs_samples = 50,	
-                    data = miceData)
- 
-#In practice, more bootstrap samples should be used for inference
-#Keeping it quick for CRAN testing purposes 
- 
-summary(coxph_fit)
+mice_ph_fit <- ic_sp_ph(Surv(l, u, type = 'interval2') ~ grp, data = miceData)
+
+summary(mice_ph_fit)
 }
 \references{
-\if{html}{\out{<div class="sourceCode">}}\preformatted{Hoel D. and Walburg, H.,(1972), Statistical analysis of survival experiments, \\emph\{The Annals of Statistics\}, 
-18, 1259-1294 
+\if{html}{\out{<div class="sourceCode">}}\preformatted{Hoel D. and Walburg, H.,(1972), Statistical analysis of survival experiments, \\emph\{The Annals of Statistics\},
+18, 1259-1294
 }\if{html}{\out{</div>}}
 }
 \keyword{datasets}

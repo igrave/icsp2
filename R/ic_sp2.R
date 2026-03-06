@@ -258,8 +258,7 @@ ic_sp_po <- ic_sp2
   linds <- lapply(mi_info, function(x) x$l_inds)
   rinds <- lapply(mi_info, function(x) x$r_inds)
 
-  c_ans <- .Call(
-    'ic_sp_ch',
+  c_ans <- ic_sp_ch(
     linds,
     rinds,
     covars_list, # list covariates of each strata
@@ -366,6 +365,8 @@ vcov.ic_sp2 <- function(object, constant = 1, ...) {
   result <- list()
   result$inv_cov <- inv_cov
   result <- -solve(inv_cov)
+
+  colnames(result) <- rownames(result) <- names(object$coefficients)
 
   result
 }

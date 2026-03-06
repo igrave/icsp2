@@ -24,8 +24,8 @@ For the \code{ic_sp} and \code{ic_par}, the MLE estimate is returned. For \code{
 the MAP estimate is returned. To compute the posterior means, use \code{sampleSurv}.
 
 If \code{newdata} is left blank, baseline estimates will be returned (i.e. all covariates = 0).
-If \code{p} is provided, will return the estimated F^{-1}(p | x). If \code{q} is provided,
-will return the estimated F(q | x). If neither \code{p} nor \code{q} are provided,
+If \code{p} is provided, will return the estimated \code{F^{-1}(p | x)}. If \code{q} is provided,
+will return the estimated \code{F(q | x)}. If neither \code{p} nor \code{q} are provided,
 the estimated conditional median is returned.
 
 In the case of \code{ic_sp}, the MLE of the baseline survival is not necessarily unique,

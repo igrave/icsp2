@@ -22,5 +22,7 @@ Imports:
     survival
 Suggests: 
     testthat (>= 3.0.0),
-    icenReg
+    icenReg,
+    vdiffr
 Config/testthat/edition: 3
+LazyData: TRUE

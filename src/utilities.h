@@ -21,6 +21,7 @@ void add_vec(double lambda, std::vector<double> &a, std::vector<double> &vec);
 void weighted_pool(double *y, double *w, int start, int stop);
 void weighted_pava(double *y, double *w, int *numberParameters);
 void pava(double *y, double *w, int *np);
+void pava_monotone(double* y, double* w, int* np);
 
 void pavaForOptim(std::vector<double> &d1, std::vector<double> &d2, std::vector<double> &x, std::vector<double> &prop_delta);
 void pavaForOptim(Eigen::VectorXd &d1, Eigen::VectorXd &d2, Eigen::VectorXd &x, Eigen::VectorXd &prop_delta);
@@ -32,15 +33,6 @@ Rcpp::NumericMatrix eigen2RMat(Eigen::MatrixXd &e_mat);
 void Rvec2eigen(SEXP r_vec, Eigen::VectorXd &e_vec);
 Rcpp::NumericVector eigen2RVec(Eigen::VectorXd &e_vec);
 
-// Distribution functions
-double ic_dloglogistic(double x, double a, double b);
-double ic_ploglogistic(double x, double a, double b);
-double ic_qloglogistic(double p, double a, double b);
-double ic_dlnorm(double x, double mu, double s);
-double ic_plnorm(double x, double mu, double s);
-double ic_dgeneralgamma(double x, double mu, double s, double Q);
-double ic_pgeneralgamma(double q, double mu, double s, double Q);
-double ic_qgeneralgamma(double p, double mu, double s, double Q);
 
 // SEXP utilities
 void SEXP2doubleVec(SEXP R_vec, std::vector<double> &c_vec);

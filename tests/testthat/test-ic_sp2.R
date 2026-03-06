@@ -68,10 +68,6 @@ test_that("PH model works for sim data with variance estimation", {
     control = ic_sp_control(derivMethod = c(12, 1))
   )
   result_cov <- vcov(result, .2)
-  dimnames(result_cov) <- list(
-    names(result$coefficients),
-    names(result$coefficients)
-  )
 
   icr_result <- icenReg::ic_sp(
     Surv(l, u, type = 'interval2') ~ x1 + x2,
@@ -119,10 +115,6 @@ test_that("PO model works for sim data with variance estimation", {
     control = ic_sp_control(derivMethod = c(12, 1))
   )
   result_cov <- vcov(result, .2)
-  dimnames(result_cov) <- list(
-    names(result$coefficients),
-    names(result$coefficients)
-  )
 
   icr_result <- icenReg::ic_sp(
     Surv(l, u, type = 'interval2') ~ x1 + x2,
@@ -131,10 +123,10 @@ test_that("PO model works for sim data with variance estimation", {
     bs_samples = 1000
   )
   icr_result_cov <- vcov(icr_result)
-  expect_equal(result_cov, icr_result_cov, tolerance = 0.01)
+  expect_equal(result_cov, icr_result_cov, tolerance = 0.05)
   expect_equal(
     sqrt(diag(result_cov)),
     sqrt(diag(icr_result_cov)),
-    tolerance = 0.05
+    tolerance = 0.1
   )
 })

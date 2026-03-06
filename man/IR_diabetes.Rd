@@ -27,10 +27,10 @@ dataset found in the package \code{glrt}.
 
 \examples{
  head(IR_diabetes)
- fit <- ic_par(cbind(left, right) ~ gender, 
-               data = IR_diabetes,
-               model = "po",
-               dist = "loglogistic")
+ diabetes_fit <- ic_sp_po(
+     Surv(left, right, type = 'interval2') ~ gender,
+     data = IR_diabetes
+     )
 }
 \references{
 Borch-Johnsens, K, Andersen, P and Decker, T (1985).

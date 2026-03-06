@@ -138,70 +138,6 @@ Rcpp::NumericVector eigen2RVec(Eigen::VectorXd &e_vec){
 	return(ans);
 }
 
-double ic_dloglogistic(double x, double a, double b){
-    double x_a = x/a;
-    double x_a_b = pow(x_a, b);
-    double ans = (b/a) * (x_a_b/x_a) / pow(1 + x_a_b, 2);
-    return(ans);
-}
-
-double ic_ploglogistic(double x, double a, double b){
-    return( 1/ (1 + pow(x/a, -b)));
-}
-
-double ic_qloglogistic(double p, double a, double b){
-    double expVal = -1.0/b;
-    double odds = (1.0 - p)/p;
-    double ans = a * pow(odds, expVal);
-    return(ans);
-}
-
-double ic_dlnorm(double x, double mu, double s){
-    double denom = x * s * sqrt(2 * M_PI);
-    double expPart = pow((log(x) - mu), 2) / (2 * s * s);
-    double ans = exp(-expPart) / denom;
-    return (ans);
-}
-
-double ic_plnorm(double x, double mu, double s){
-    return(R::pnorm(log(x), mu, s, 0, 0));
-}
-
-
-
-
-double ic_dgeneralgamma(double x, double mu, double s, double Q){
-    if(Q == 0){
-        return(ic_dlnorm(x, mu, s));
-    }
-    double y = log(x);
-    double w = ((y - mu)/s);
-    double Q_inv = 1/(Q * Q);
-    double logAns = -log(s*x) + log(abs(Q)) + Q_inv * log(Q_inv) + Q_inv * (Q*w - exp(Q*w)) - Rf_lgammafn(Q_inv);
-    return(exp(logAns));
-}
-
-double ic_pgeneralgamma(double q, double mu, double s, double Q){
-    if(Q == 0){ return(ic_plnorm(q, mu, s));}
-    double y = log(q);
-    double w = ((y-mu)/s);
-    double Q_inv = 1 / (Q*Q);
-    double expnu = exp(Q*w) * Q_inv;
-    double ans;
-    if(Q > 0){ ans = 1 - Rf_pgamma(expnu, Q_inv, 1.0,  0, 0);}
-    else{ ans = Rf_pgamma(expnu, Q_inv, 1.0, 0, 0);}
-    return(ans);
-}
-
-double ic_qgeneralgamma(double p, double mu, double s, double Q){
-    if(Q == 0){ return(R::qlnorm(p, mu, s, 1, 0)); }
-    double Q2 = (Q*Q);
-    double Q_inv = 1/Q2;
-    double part2 = s * (log(Q2 * R::qgamma(p, Q_inv, 1.0, 0, 0)) / Q);
-    double ans = exp(mu + part2);
-    return(ans);
-}
-
 
 
 void pavaForOptim(std::vector<double> &d1, std::vector<double> &d2, std::vector<double> &x, std::vector<double> &prop_delta){
@@ -263,7 +199,7 @@ void addIfNeeded(std::vector<int> &points, int l, int r, int max){
 
 
 
-extern "C"{
+// [[Rcpp::export]]
     SEXP pava(SEXP R_d1, SEXP R_d2, SEXP R_x){
         int k = LENGTH(R_d1);
         if(k!= LENGTH(R_d2) || k != LENGTH(R_x) ){Rprintf("sizes don't match! Quiting pava\n"); return(R_NilValue);}
@@ -284,12 +220,12 @@ extern "C"{
         UNPROTECT(1);
         return(ans);
     }
-}
 
 
 
-extern "C"{
-    SEXP fastNumericInsert(SEXP newVals, SEXP target, SEXP indices){
+
+// [[Rcpp::export]]
+    SEXP fastNumericInsert_cpp(SEXP newVals, SEXP target, SEXP indices){
         int k1 = LENGTH(newVals);
         int k2 = LENGTH(indices);
         int t_k = LENGTH(target);
@@ -323,7 +259,7 @@ extern "C"{
     return(target
            );
     }
-}
+
 
 
 //Added for bivariate NPMLE

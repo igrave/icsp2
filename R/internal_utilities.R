@@ -15,41 +15,9 @@ find_maximal_intersections <- function(lower, upper) {
   all_vals <- sort(unique(c(lower, upper)))
   is_left <- all_vals %in% lower
   is_right <- all_vals %in% upper
-  mi_list <- .Call("findMI", all_vals, is_left, is_right, lower, upper)
+  mi_list <- findMI(all_vals, is_left, is_right, lower, upper)
   names(mi_list) <- c('l_inds', 'r_inds', 'mi_l', 'mi_r')
   mi_list
-}
-
-
-bs_sampleData <- function(rawDataEnv, weights) {
-  n <- length(rawDataEnv[['y']][, 1])
-  sampEnv <- new.env()
-  sampInds <- sample(1:n, ceiling(sum(weights)), replace = TRUE, prob = weights)
-  tabledInds <- table(sampInds)
-  unqInds <- as.numeric(names(tabledInds))
-  weights <- as.numeric(tabledInds)
-  sampEnv[['x']] <- rawDataEnv[['x']][unqInds, ]
-  sampEnv[['y']] <- rawDataEnv[['y']][unqInds, ]
-  sampEnv[['strata']] <- rawDataEnv[['strata']][unqInds]
-  sampEnv[['w']] <- weights
-  return(sampEnv)
-}
-
-getBS_coef <- function(sampDataEnv, callText = 'ic_ph', other_info) {
-  xMat <- cbind(sampDataEnv$x, 1)
-  invertResult <- try(diag(solve(t(xMat) %*% xMat)), silent = TRUE)
-  if (is(invertResult, 'try-error')) {
-    return(rep(NA, ncol(xMat) - 1))
-  }
-  output <- .fit_ic_sp(
-    y = sampDataEnv$y,
-    x = sampDataEnv$x,
-    model_type = callText,
-    weights = sampDataEnv$w,
-    strata = sampDataEnv$strata,
-    other_info = other_info
-  )$coefficients
-  return(output)
 }
 
 
@@ -119,163 +87,6 @@ getResponse <- function(fit, newdata = NULL) {
   ans <- expandY(fit$formula, newdata, fit)
   return(ans)
 }
-###		PARAMETRIC FIT UTILITIES
-
-make_par_fitList <- function(
-  y_mat,
-  x_mat,
-  parFam = "gamma",
-  link = "po",
-  leftCen = 0,
-  rightCen = Inf,
-  uncenTol = 10^-6,
-  regnames,
-  weights,
-  callText
-) {
-  k_reg <- getNumCovars(x_mat)
-  etaOffset = 0
-  if (!is.matrix(x_mat)) {
-    x_mat <- matrix(x_mat, ncol = 1)
-  }
-  #  if(recenterCovar == TRUE){
-  #    prcomp_xmat <- prcomp(x_mat, center = TRUE, scale. = TRUE)
-  #    x_mat <- prcomp_xmat$x
-  #  }
-
-  isUncen <- abs(y_mat[, 2] - y_mat[, 1]) < uncenTol
-  mean_uncen_t <- (y_mat[isUncen, 1] + y_mat[isUncen, 2]) / 2
-  y_mat[isUncen, 1] <- mean_uncen_t
-  y_mat[isUncen, 2] <- mean_uncen_t
-  isRightCen <- y_mat[, 2] == rightCen
-  isLeftCen <- y_mat[, 1] <= leftCen
-  isGCen <- !(isUncen | isRightCen | isLeftCen)
-
-  if (any(isRightCen & isUncen)) {
-    stop('estimator not defined if left side of interval = 0')
-  }
-  if (any(isLeftCen & isUncen)) {
-    stop(
-      'uncensored times cannot be equal = 0. Try replacing exact times = 0 with really small numbers'
-    )
-  }
-  if (any(y_mat[, 1] > y_mat[, 2])) {
-    stop('left side of interval cannot be larger than right!')
-  }
-
-  s_t <- unique(as.numeric(y_mat))
-  uncenInd_s <- match(y_mat[isUncen, 1], s_t)
-  d_t <- unique(s_t[uncenInd_s])
-  uncenInd_d <- match(y_mat[isUncen, 1], d_t)
-  uncenInd_mat <- as.matrix(cbind(uncenInd_d, uncenInd_s))
-
-  rightCenInd <- match(y_mat[isRightCen, 1], s_t)
-  leftCenInd <- match(y_mat[isLeftCen, 2], s_t)
-
-  leftSideInd <- match(y_mat[isGCen, 1], s_t)
-  rightSideInd <- match(y_mat[isGCen, 2], s_t)
-
-  gicInd_mat <- as.matrix(cbind(leftSideInd, rightSideInd))
-
-  w_reordered <- c(
-    weights[isUncen],
-    weights[isGCen],
-    weights[isLeftCen],
-    weights[isRightCen]
-  )
-
-  if (is.matrix(x_mat)) {
-    if (ncol(x_mat) > 1) {
-      x_mat_rearranged <- rbind(
-        x_mat[isUncen, ],
-        x_mat[isGCen, ],
-        x_mat[isLeftCen, ],
-        x_mat[isRightCen, ]
-      )
-    } else {
-      x_mat_rearranged <- matrix(
-        c(x_mat[isUncen], x_mat[isGCen], x_mat[isLeftCen], x_mat[isRightCen]),
-        ncol = 1
-      )
-    }
-  } else if (length(x_mat) != 0) {
-    x_mat_rearranged <- matrix(
-      c(x_mat[isUncen], x_mat[isGCen], x_mat[isLeftCen], x_mat[isRightCen]),
-      ncol = 1
-    )
-  } else {
-    x_mat_rearranged <- matrix(ncol = 0, nrow = nrow(x_mat))
-  }
-  storage.mode(x_mat_rearranged) <- 'double'
-  x_mat_rearranged <- as.matrix(x_mat_rearranged)
-
-  if (k_reg == 0) {
-    x_mat_rearranged <- matrix(nrow = nrow(x_mat), ncol = k_reg)
-  }
-
-  #regnames = colnames(x_mat_rearranged)
-  if (parFam == 'gamma') {
-    parInd = as.integer(1)
-    k_base = 2
-    bnames = c('log_shape', 'log_scale')
-  } else if (parFam == 'weibull') {
-    parInd = as.integer(2)
-    k_base = 2
-    bnames = c('log_shape', 'log_scale')
-  } else if (parFam == 'lnorm') {
-    parInd = as.integer(3)
-    k_base = 2
-    bnames = c('mu', 'log_s')
-  } else if (parFam == 'exponential') {
-    parInd = as.integer(4)
-    k_base = 1
-    bnames = 'log_scale'
-  } else if (parFam == 'loglogistic') {
-    parInd = as.integer(5)
-    k_base = 2
-    bnames = c('log_alpha', 'log_beta')
-  } else if (parFam == 'generalgamma') {
-    parInd = as.integer(6)
-    k_base = 3
-    bnames = c('mu', 'log_s', 'Q')
-  } else {
-    stop('parametric family not supported')
-  }
-
-  hessnames = c(bnames, regnames)
-
-  if (link == 'po') {
-    linkInd = as.integer(1)
-  } else if (link == 'ph') {
-    linkInd = as.integer(2)
-  } else if (link == 'aft') {
-    linkInd = as.integer(3)
-  } else {
-    stop('link function not supported')
-  }
-
-  hessian <- matrix(numeric(), nrow = (k_reg + k_base), ncol = (k_reg + k_base))
-
-  ans <- list(
-    s_t = s_t,
-    d_t = d_t,
-    covars = x_mat_rearranged,
-    uncenInd_mat = uncenInd_mat,
-    gicInd_mat = gicInd_mat,
-    leftCenInd = leftCenInd,
-    rightCenInd = rightCenInd,
-    parInd = parInd,
-    linkType = linkInd,
-    hessian = hessian,
-    w = as.numeric(w_reordered),
-    bnames = bnames,
-    regnames = regnames,
-    hessnames = hessnames
-  )
-
-  return(ans)
-}
-
 
 ###			IMPUTATION UTILITIES
 
@@ -474,37 +285,6 @@ makeNumericSplitInfo <- function(vals, cuts) {
     return(list(data = data[keep, ], w = weights[keep]))
   }
   sInfo
-}
-
-splitAndFit <- function(
-  newcall,
-  data,
-  varName,
-  splitInfo,
-  fitFunction,
-  model,
-  weights
-) {
-  split_data <- splitData(
-    data,
-    varName = varName,
-    splits = splitInfo$splits,
-    splitFun = splitInfo$splitFun,
-    weights = weights
-  )
-  splitNames <- ls(split_data)
-  splitFits <- new.env()
-  for (sn in splitNames) {
-    theseData <- split_data[[sn]]$data
-    theseWeights <- split_data[[sn]]$w
-    splitFits[[sn]] <- ic_sp(
-      newcall,
-      data = theseData,
-      model = model,
-      weights = theseWeights
-    )
-  }
-  return(splitFits)
 }
 
 s_exp <- function(x, par) {
@@ -844,8 +624,7 @@ getSurvProbs <- function(times, etas, baselineInfo, regMod, baseMod) {
   if (is.null(baseInt)) {
     stop('baseMod type not recognized')
   }
-  ans <- .Call(
-    's_regTrans',
+  ans <- s_regTrans(
     as.double(times),
     as.double(etas),
     baselineInfo,
@@ -870,8 +649,7 @@ getSurvTimes <- function(p, etas, baselineInfo, regMod, baseMod) {
   if (is.null(baseInt)) {
     stop('baseMod type not recognized')
   }
-  ans <- .Call(
-    'q_regTrans',
+  ans <- q_regTrans(
     as.double(p),
     as.double(etas),
     baselineInfo,
@@ -953,7 +731,7 @@ fastNumericInsert <- function(newVals, target, indices) {
     storage.mode(indices) <- 'integer'
   }
 
-  invisible(.Call('fastNumericInsert', newVals, target, indices))
+  invisible(fastNumericInsert_cpp(newVals, target, indices))
 }
 
 fastMatrixInsert <- function(newVals, targMat, rowNum = NULL, colNum = NULL) {
@@ -1137,21 +915,15 @@ sample_in_interval <- function(fit, newdata, lower_time, upper_time) {
 }
 
 sample_pars <- function(fit, samples = 100) {
-  if (is(fit, 'par_fit') | is(fit, 'sp_fit')) {
-    chol_var <- chol(vcov.icenReg_fit(fit))
-    mean_coefs <- as.numeric(fit$coefficients)
-    k <- length(mean_coefs)
-    norm_samps <- matrix(rnorm(samples * k), nrow = samples)
-    ans <- norm_samps %*% chol_var + rep(1, samples) %*% t(mean_coefs)
-    return(ans)
+  if (!is(fit, 'ic_sp2')) {
+    stop("sample_pars only implemented for ic_sp2 fits")
   }
-  if (is(fit, 'bayes_fit')) {
-    n_samps <- nrow(fit$samples)
-    resamp = samples > n_samps
-    samp_inds <- sample(1:n_samps, samples, replace = resamp)
-    ans <- fit$samples[samp_inds, ]
-    return(ans)
-  }
+  chol_var <- chol(vcov.icenReg_fit(fit))
+  mean_coefs <- as.numeric(fit$coefficients)
+  k <- length(mean_coefs)
+  norm_samps <- matrix(rnorm(samples * k), nrow = samples)
+  ans <- norm_samps %*% chol_var + rep(1, samples) %*% t(mean_coefs)
+  ans
 }
 
 sample_etas_and_base <- function(fit, samples, newdata) {
@@ -1180,75 +952,4 @@ subtractOffset <- function(new_x, offset) {
     new_x[, i] <- new_x[, i] - offset[1, i]
   }
   return(new_x)
-}
-
-
-# This function throws an error if a user tries to include "cluster(x)"
-# on the right hand side of a formula
-checkFor_cluster = function(form) {
-  # Extracting right hand side
-  rhs = form[[3]]
-  # Turning into characters
-  rhs_char = as.character(rhs)
-
-  if (any(grepl("cluster\\(", rhs_char))) {
-    stop(
-      "cluster(covar) not implemented in icenReg. To account for repeated measures, see ?ir_clustBoot"
-    )
-  }
-}
-
-
-# This function prepares response + feature matrices
-#' @param frml formula object
-#' @param data data.frame
-#' @noRd
-make_xy = function(frml, df) {
-  ans = list()
-  # Making a model.frame
-  mod_frame = model.frame(
-    formula = eval(frml),
-    data = as.data.frame(df),
-    # NA's allowed in y (right censoring) but not x
-    # We check x for nas manually
-    na.action = na.pass
-  )
-  # Getting x from model frame
-  # trapping weird problem happens with diag_covar if rightside is ~0
-  x <- try(model.matrix(eval(frml), df), silent = T)
-  if (inherits(x, "try-error")) {
-    if (frml[[3]] == "0") {
-      # In this case, n x 0 matrix is needed
-      x <- matrix(0, nrow = nrow(df), ncol = 0)
-    }
-  }
-  if (nrow(x) < nrow(df)) {
-    stop("Not allowed to have NAs for predictors")
-  }
-
-  # icenReg does not use intercepts
-  if ('(Intercept)' %in% colnames(x)) {
-    ind = which(colnames(x) == '(Intercept)')
-    x <- x[, -ind, drop = F]
-  }
-  ans$x <- x
-  ans$xNames = colnames(x)
-
-  # Getting y
-  base_y = model.response(mod_frame)
-  yMat = makeIntervals(base_y, mod_frame)
-  ans$y = yMat
-  return(ans)
-}
-
-
-icColMeans <- function(x) {
-  dims <- dim(x)
-  if (is.null(dims)) {
-    return(mean(x))
-  }
-  if (length(dims) == 2) {
-    return(colMeans(x))
-  }
-  stop('data type unrecognized')
 }
