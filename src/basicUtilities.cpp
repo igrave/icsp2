@@ -597,7 +597,7 @@ int findSurroundingVals(double val, std::vector<double>& leftVec,
 		else{ a = propInd; }
 	}
 	if(a == b){
-		Rprintf("this is very surprising... a = %d, size = %d\n", a, leftVec.size());
+		Rprintf("this is very surprising... a = %d, size = %zu\n", a, leftVec.size());
 		return(a);
 	}
 	if( isLeft ) return(b); 

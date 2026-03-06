@@ -38,10 +38,10 @@ lines.ic_sp2 <- function(x, y, type = "s", strata, ...) {
   })
 
   pars_dots$x <- unlist(
-    lapply(x$T_bull_Intervals[strata], function(intervals) {
+    lapply(x$intervals[strata], function(int) {
       list(
-        c(intervals[1, 1], intervals[1, ]),
-        c(intervals[1, 1], intervals[2, ])
+        c(int[1, 1], int[1, ]),
+        c(int[1, 1], int[2, ])
       )
     }),
     recursive = FALSE
@@ -62,9 +62,9 @@ range.ic_sp2 <- function(x, na.rm = FALSE, finite = FALSE, strata, ...) {
   if (!missing(strata)) {
     strata <- as.integer(strata)
     stopifnot(strata >= 1 & strata <= length(x$s))
-    y <- x$T_bull_Intervals[strata]
+    y <- x$intervals[strata]
   } else {
-    y <- x$T_bull_Intervals
+    y <- x$intervals
   }
 
   range(

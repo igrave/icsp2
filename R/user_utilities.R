@@ -46,9 +46,9 @@ getSCurves.default <- function(fit, newdata = NULL) {
   grpNames <- names(etas)
   transFxn <- get_link_fun(fit)
   if (fit$par == 'semi-parametric' | fit$par == 'non-parametric') {
-    ans_list <- lapply(seq_along(fit$T_bull_Intervals), function(i) {
-      x_l <- fit$T_bull_Intervals[[i]][1, ]
-      x_u <- fit$T_bull_Intervals[[i]][2, ]
+    ans_list <- lapply(seq_along(fit$intervals), function(i) {
+      x_l <- fit$intervals[[i]][1, ]
+      x_u <- fit$intervals[[i]][2, ]
       x_l <- c(x_l[1], x_l)
       x_u <- c(x_l[1], x_u)
       Tbull_intervals <- cbind(x_l, x_u)
@@ -83,8 +83,8 @@ getSCurves.ic_np <- function(fit, newdata = NULL) {
   grpNames <- names(etas)
   transFxn <- get_link_fun(fit)
 
-  x_l <- fit$T_bull_Intervals[1, ]
-  x_u <- fit$T_bull_Intervals[2, ]
+  x_l <- fit$intervals[1, ]
+  x_u <- fit$intervals[2, ]
   x_l <- c(x_l[1], x_l)
   x_u <- c(x_l[1], x_u)
   Tbull_intervals <- cbind(x_l, x_u)
@@ -1219,7 +1219,7 @@ dGeneralGamma <- function(x, mu, s, Q) {
   s <- updateDistPars(s, max_n)
   Q <- updateDistPars(Q, max_n)
 
-  ans <- .Call('dGeneralGamma', x, mu, s, Q, PACKAGE = "icenReg")
+  ans <- .Call('dGeneralGamma', x, mu, s, Q, PACKAGE = "icsp2")
   return(ans)
 }
 

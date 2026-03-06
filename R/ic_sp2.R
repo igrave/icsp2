@@ -1,4 +1,4 @@
-#' Settings for ic_sp_ph
+#' Control ic_sp2 fitting options
 #'
 #' @param useGA Should constrained gradient ascent step be used?
 #' @param maxIter Maximum iterations
@@ -8,19 +8,20 @@
 #' @param updateCovars Should covariates be updated during fitting?
 #'
 #'  @description
-#' Creates the control options for the \code{ic_sp} function.
+#' Creates the control options for [ic_sp2()].
 #' Defaults not intended to be changed for use in standard analyses.
 #'
 #' @details
-#' The constrained gradient step, actived by \code{useGA = T},
+#' The constrained gradient step, actived by \code{useGA = TRUE},
 #' is a step that was added to improve the convergence in a special case.
 #' The option to turn it off is only in place to help demonstrate it's utility.
 #'
-#'  \code{regStart} also for seeding of initial value of regression parameters. Intended for use in ``warm start" for bootstrap samples
+#'  \code{regStart} also for seeding of initial value of regression parameters.
+#'  Intended for use in ``warm start" for bootstrap samples
 #'  and providing fixed regression parameters when calculating fit in qq-plots.
 #'
 #' @export
-ic_sp_settings <- function(
+ic_sp_control <- function(
   useGA = TRUE,
   maxIter = 10000,
   baseUpdates = 5,
@@ -45,7 +46,7 @@ ic_sp_settings <- function(
 #' @param data A data frame containing the variables in the formula, including strata terms.
 #' @param weights Optional vector of weights for each observation, or the name of a variable in `data` containing the weights.
 #' @param B A vector of length 2 giving the lower and upper bounds for the observation times. Default is c(0, 1).
-#' @param settings A list of control settings created by `ic_sp_settings()`.
+#' @param control A list of control settings, with defaults created by [ic_sp_control()].
 #' @return A list containing the fitted model information, including coefficients, variance-covariance matrix, and other details.
 #' @export
 ic_sp2 <- function(
@@ -55,8 +56,9 @@ ic_sp2 <- function(
   subset,
   na.action,
   B = c(0, 1),
-  settings = ic_sp_settings(),
-  model = c("ph", "po")
+  control = ic_sp_control(...),
+  model = c("ph", "po"),
+  ...
 ) {
   # Information about orginal call to function. Useful for expanding X in predict(fit, newdata)
   call <- match.call()
@@ -95,7 +97,7 @@ ic_sp2 <- function(
     strata_vars <- mf[, strata_special, drop = FALSE]
     strata <- interaction(strata_vars, drop = TRUE)
     mf[, strata_special] <- NULL
-    terms <- terms[attr(terms, "factors")[strata_special, ] == 0]
+    terms <- drop.terms(terms, dropx = strata_special - 1, keep.response = TRUE)
   } else {
     strata <- factor(rep(1, nrow(mf)))
   }
@@ -118,8 +120,8 @@ ic_sp2 <- function(
 
   weights <- check_weights(mf)
 
-  if (!is.null(settings$regStart)) {
-    regStart <- settings$regStart
+  if (!is.null(control$regStart)) {
+    regStart <- control$regStart
   } else {
     regStart <- rep(0, length(x_names))
   }
@@ -128,14 +130,14 @@ ic_sp2 <- function(
   }
 
   other_info <- list(
-    useGA = settings$useGA,
-    maxIter = settings$maxIter,
-    baselineUpdates = settings$baseUpdates,
+    useGA = control$useGA,
+    maxIter = control$maxIter,
+    baselineUpdates = control$baseUpdates,
     useFullHess = TRUE,
-    updateCovars = settings$updateCovars,
+    updateCovars = control$updateCovars,
     recenterCovars = (length(x_names) > 0),
     regStart = regStart,
-    derivMethod = settings$derivMethod
+    derivMethod = control$derivMethod
   )
 
   # Recentering covariates
@@ -178,7 +180,7 @@ ic_sp2 <- function(
   result$reg_pars <- result$coefficients
   result$terms <- terms
   result$xlevels <- .getXlevels(terms, mf)
-  if (result$iterations == settings$maxIter) {
+  if (result$iterations == control$maxIter) {
     warning("Maximum iterations reached.")
   }
   result$other_info <- other_info
@@ -280,7 +282,7 @@ ic_sp_po <- ic_sp2
   result$llk <- c_ans$llk
   result$iterations <- c_ans$iterations
   result$score <- c_ans$score
-  result[['T_bull_Intervals']] <- lapply(mi_info, function(mi) {
+  result[['intervals']] <- lapply(mi_info, function(mi) {
     rbind(mi[['mi_l']], mi[['mi_r']])
   })
 
@@ -366,6 +368,21 @@ vcov.ic_sp2 <- function(object, constant = 1, ...) {
   result <- -solve(inv_cov)
 
   result
+}
+
+profile_fit <- function(object, beta = object$coefficients) {
+  call_args <- list(
+    other_info = object$other_info,
+    x = object$.dataEnv$x,
+    y = object$.dataEnv$y,
+    model_type = paste0("ic_", object$model),
+    weights = object$.dataEnv$weights,
+    strata = object$.dataEnv$strata
+  )
+  call_args$other_info$updateCovars <- FALSE
+  call_args$other_info$regStart <- beta
+  new_fit <- do.call(.fit_ic_sp, call_args)
+  return(new_fit)
 }
 
 #' Print method for ic_sp2 objects

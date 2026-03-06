@@ -4,7 +4,7 @@ test_that("PH model works for sim data", {
   result <- ic_sp_ph(
     Surv(l, u, type = 'interval2') ~ x1 + x2,
     data = sim_data,
-    settings = ic_sp_settings(derivMethod = 1)
+    control = ic_sp_control(derivMethod = 1)
   )
 
   icr_result <- icenReg::ic_sp(
@@ -13,7 +13,7 @@ test_that("PH model works for sim data", {
   )
   expect_equal(result$coefficients, icr_result$coefficients, tolerance = 1e-7)
 
-  expect_equal(result$T_bull_Intervals[[1]], icr_result$T_bull_Intervals)
+  expect_equal(result$intervals[[1]], icr_result$T_bull_Intervals)
 })
 
 
@@ -28,7 +28,7 @@ test_that("PH model works for miceData", {
   )
   expect_equal(result$coefficients, icr_result$coefficients, tolerance = 1e-8)
 
-  expect_equal(result$T_bull_Intervals[[1]], icr_result$T_bull_Intervals)
+  expect_equal(result$intervals[[1]], icr_result$T_bull_Intervals)
 })
 
 
@@ -49,11 +49,11 @@ test_that("PH model works for miceData as stratified", {
     icr_result$fitList[[1]]$llk + icr_result$fitList[[2]]$llk
   )
   expect_equal(
-    result$T_bull_Intervals[["ce"]],
+    result$intervals[["ce"]],
     icr_result$fitList$ce$T_bull_Intervals
   )
   expect_equal(
-    result$T_bull_Intervals[["ge"]],
+    result$intervals[["ge"]],
     icr_result$fitList$ge$T_bull_Intervals
   )
 })
@@ -65,7 +65,7 @@ test_that("PH model works for sim data with variance estimation", {
   result <- ic_sp_ph(
     Surv(l, u, type = 'interval2') ~ x1 + x2,
     data = sim_data,
-    settings = ic_sp_settings(derivMethod = c(12, 1))
+    control = ic_sp_control(derivMethod = c(12, 1))
   )
   result_cov <- vcov(result, .2)
   dimnames(result_cov) <- list(
@@ -95,7 +95,7 @@ test_that("PO model works for sim data", {
   result <- ic_sp_po(
     Surv(l, u, type = 'interval2') ~ x1 + x2,
     data = sim_data,
-    settings = ic_sp_settings(derivMethod = c(12, 1))
+    control = ic_sp_control(derivMethod = c(12, 1))
   )
 
   icr_result <- icenReg::ic_sp(
@@ -105,7 +105,7 @@ test_that("PO model works for sim data", {
   )
   expect_equal(result$coefficients, icr_result$coefficients, tolerance = 1e-7)
 
-  expect_equal(result$T_bull_Intervals[[1]], icr_result$T_bull_Intervals)
+  expect_equal(result$intervals[[1]], icr_result$T_bull_Intervals)
 })
 
 
@@ -116,7 +116,7 @@ test_that("PO model works for sim data with variance estimation", {
   result <- ic_sp_po(
     Surv(l, u, type = 'interval2') ~ x1 + x2,
     data = sim_data,
-    settings = ic_sp_settings(derivMethod = c(12, 1))
+    control = ic_sp_control(derivMethod = c(12, 1))
   )
   result_cov <- vcov(result, .2)
   dimnames(result_cov) <- list(

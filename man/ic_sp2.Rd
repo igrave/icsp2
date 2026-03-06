@@ -13,8 +13,9 @@ ic_sp2(
   subset,
   na.action,
   B = c(0, 1),
-  settings = ic_sp_settings(),
-  model = c("ph", "po")
+  control = ic_sp_control(...),
+  model = c("ph", "po"),
+  ...
 )
 
 ic_sp_ph(
@@ -24,8 +25,9 @@ ic_sp_ph(
   subset,
   na.action,
   B = c(0, 1),
-  settings = ic_sp_settings(),
-  model = c("ph", "po")
+  control = ic_sp_control(...),
+  model = c("ph", "po"),
+  ...
 )
 
 ic_sp_po(
@@ -35,8 +37,9 @@ ic_sp_po(
   subset,
   na.action,
   B = c(0, 1),
-  settings = ic_sp_settings(),
-  model = c("ph", "po")
+  control = ic_sp_control(...),
+  model = c("ph", "po"),
+  ...
 )
 }
 \arguments{
@@ -48,7 +51,7 @@ ic_sp_po(
 
 \item{B}{A vector of length 2 giving the lower and upper bounds for the observation times. Default is c(0, 1).}
 
-\item{settings}{A list of control settings created by \code{ic_sp_settings()}.}
+\item{control}{A list of control settings, with defaults created by \code{\link[=ic_sp_control]{ic_sp_control()}}.}
 }
 \value{
 A list containing the fitted model information, including coefficients, variance-covariance matrix, and other details.
