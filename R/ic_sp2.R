@@ -273,7 +273,14 @@ ic_sp_po <- ic_sp2
     as.double(regStart),
     as.integer(derivMethod)
   )
-  names(c_ans) <- c('p_hat', 'coefficients', 'llk', 'iterations', 'score')
+  names(c_ans) <- c(
+    'p_hat',
+    'coefficients',
+    'llk',
+    'iterations',
+    'score',
+    'hessian'
+  )
   result <- list() #new(model_type)
   result$p_hat <- lapply(c_ans$p_hat, function(p) p / sum(p))
   result$s <- lapply(result$p_hat, function(p) 1 - c(0, cumsum(p)))
@@ -281,6 +288,7 @@ ic_sp_po <- ic_sp2
   result$llk <- c_ans$llk
   result$iterations <- c_ans$iterations
   result$score <- c_ans$score
+  result$hessian <- c_ans$hessian
   result[['intervals']] <- lapply(mi_info, function(mi) {
     rbind(mi[['mi_l']], mi[['mi_r']])
   })

@@ -680,12 +680,13 @@ SEXP ic_sp_ch(SEXP Rlind, SEXP Rrind, SEXP Rcovars, SEXP fitType,
     
     
     
-    SEXP ans = PROTECT(Rf_allocVector(VECSXP, 5));
+    SEXP ans = PROTECT(Rf_allocVector(VECSXP, 6));
     SEXP R_pans = PROTECT(Rf_allocVector(VECSXP,p_hat.size()));
     SEXP R_coef = PROTECT(Rf_allocVector(REALSXP, optObj->reg_par.size()));
     SEXP R_fnl_llk = PROTECT(Rf_allocVector(REALSXP, 1));
     SEXP R_its = PROTECT(Rf_allocVector(REALSXP, 1));
     SEXP R_score = PROTECT(Rf_allocVector(REALSXP, optObj->reg_par.size()));
+    SEXP R_hessian = PROTECT(Rf_allocMatrix(REALSXP, optObj->reg_par.size(), optObj->reg_par.size()));
 
     for (size_t i = 0; i < p_hat.size(); ++i) {
         const std::vector<double>& inner = p_hat[i];
@@ -699,6 +700,14 @@ SEXP ic_sp_ch(SEXP Rlind, SEXP Rrind, SEXP Rcovars, SEXP fitType,
         REAL(R_coef)[i] = optObj->reg_par[i];
         REAL(R_score)[i] = optObj->reg_d1[i];
     }
+    
+    // Copy Hessian matrix (column-major order for R)
+    for(int i = 0; i < optObj->reg_par.size(); i++){
+        for(int j = 0; j < optObj->reg_par.size(); j++){
+            REAL(R_hessian)[i + j * optObj->reg_par.size()] = optObj->reg_d2(i, j);
+        }
+    }
+    
     REAL(R_fnl_llk)[0] = llk_new;
     REAL(R_its)[0] = optObj->iter;
     
@@ -707,8 +716,9 @@ SEXP ic_sp_ch(SEXP Rlind, SEXP Rrind, SEXP Rcovars, SEXP fitType,
     SET_VECTOR_ELT(ans, 2, R_fnl_llk);
     SET_VECTOR_ELT(ans, 3, R_its);
     SET_VECTOR_ELT(ans, 4, R_score);
+    SET_VECTOR_ELT(ans, 5, R_hessian);
     
-    UNPROTECT(6);
+    UNPROTECT(7);
 
     
     if(INTEGER(fitType)[0] == 1){
@@ -782,6 +792,12 @@ double icm_Abst::run(int maxIter, double tol, bool useGD, int baselineUpdates){
            Rprintf("warning: likelihood decreased! difference = %f\n", llk_new - llk_old);
        }
     }
+    
+    // For score test: compute score and information with optimized baseline
+    if (!updateCovars && reg_par.size() > 0) {
+        calcAnalyticRegDervs(reg_d2, reg_d1);
+    }
+    
     return(llk_new);
 }
 
