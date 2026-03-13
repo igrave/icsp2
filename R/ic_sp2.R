@@ -279,7 +279,8 @@ ic_sp_po <- ic_sp2
     'llk',
     'iterations',
     'score',
-    'hessian'
+    'hessian',
+    'd3'
   )
   result <- list() #new(model_type)
   result$p_hat <- lapply(c_ans$p_hat, function(p) p / sum(p))
@@ -289,6 +290,7 @@ ic_sp_po <- ic_sp2
   result$iterations <- c_ans$iterations
   result$score <- c_ans$score
   result$hessian <- c_ans$hessian
+  result$d3 <- c_ans$d3
   result[['intervals']] <- lapply(mi_info, function(mi) {
     rbind(mi[['mi_l']], mi[['mi_r']])
   })
@@ -299,30 +301,53 @@ ic_sp_po <- ic_sp2
 
 #' Profile Likelihood Covariance for Semi-Parametric Models
 #' @param fit Fitted model object from \code{ic_sp}
-#' @param constant Multiplier for the constant `h_n` in the profile likelihood.
-#'   Either length 1 or length equal to number of regression parameters.
-#' @param ... Additional arguments.
+#' @param typical A typical value for the regression parameters, used to determine the scale of `h_n`. Default is 1.
+#' @param large A large value for the regression parameters, used to determine the scale of `h_n`. Default is 2.
+#' #' @param ... Unused.
+#' @return Variance-covariance matrix of the regression parameters.
+#' @details
+#' The covariance matrix is calculated using the profile likelihood approach
+#' described in Boruvka and Cook (2014). This method involves perturbing the
+#' regression parameters and refitting the model to estimate the curvature of
+#' the log-likelihood function, which is then used to compute the covariance matrix.
+#' The `typical` and `large` parameters are used to determine the scale of the
+#' perturbations.
+#' @references Boruvka, A., and Cook, R. J. (2015), A Cox-Aalen Model for Interval-censored Data. Scand J Statist, 42, 414–426. doi: 10.1111/sjos.12113.
 #' @exportS3Method vcov ic_sp2
-vcov.ic_sp2 <- function(object, constant = 1, ...) {
+vcov.ic_sp2 <- function(object, typical = 1, large = 2, ...) {
   fit <- object
   if (!inherits(fit, "ic_sp_ph") && !inherits(fit, "ic_sp_po")) {
     stop("Fit must be an object of class ic_sp_ph or ic_sp_po.")
   }
-
+  stopifnot(is.numeric(typical), length(typical) == 1, typical > 0)
+  stopifnot(is.numeric(large), length(large) == 1, large > 0)
   n <- nrow(fit$.dataEnv$data)
   k <- length(fit$coefficients)
-  if (length(constant) == 1) {
-    # constant <- rep(constant, k)[1]
-  } else if (length(constant) != k) {
-    stop(
-      'Constant must be length 1 or length equal to number of regression parameters'
-    )
-  }
+
   llk_beta <- fit$llk
   llk_beta_k <- numeric(k)
   llk_beta_j_k <- matrix(NA, nrow = k, ncol = k)
 
-  h <- constant * sqrt(1 / n)
+  h <- matrix(0, nrow = k, ncol = k)
+  curv <- function(object, i, j) {
+    e <- rep(0, n)
+    e[c(i, j)] <- 1
+    -2 * object$llk / sum(object$d3[unique(c(i, j))])
+  }
+
+  for (i in seq_len(k)) {
+    for (j in seq(from = i, to = k)) {
+      curv_ij <- curv(object, i, j)
+      h[j, i] <- h[i, j] <- n^(-1 / 2) *
+        sign(curv_ij) *
+        max(
+          min(abs(curv_ij), large),
+          abs(object$coefficients[i]),
+          abs(object$coefficients[j]),
+          typical
+        )
+    }
+  }
 
   call_args <- list(
     other_info = fit$other_info,
@@ -337,7 +362,7 @@ vcov.ic_sp2 <- function(object, constant = 1, ...) {
   for (i in seq_len(k)) {
     # fit the model with beta_i + h
     beta <- fit$coefficients
-    beta[i] <- beta[i] + h
+    beta[i] <- beta[i] + h[i, i]
     call_args$other_info$regStart <- beta
     new_fit <- do.call(.fit_ic_sp, call_args)
     llk_beta_k[i] <- new_fit$llk
@@ -347,8 +372,8 @@ vcov.ic_sp2 <- function(object, constant = 1, ...) {
     for (j in seq(from = i, to = k)) {
       # fit the model with beta_i + h_i and beta_j + h_j
       beta <- fit$coefficients
-      beta[i] <- beta[i] + h
-      beta[j] <- beta[j] + h
+      beta[i] <- beta[i] + h[i, j]
+      beta[j] <- beta[j] + h[i, j]
       call_args$other_info$regStart <- beta
       new_fit <- do.call(.fit_ic_sp, call_args)
       llk_beta_j_k[i, j] <- new_fit$llk
@@ -360,11 +385,10 @@ vcov.ic_sp2 <- function(object, constant = 1, ...) {
   inv_cov <- matrix(NA, nrow = k, ncol = k)
   for (i in seq_len(k)) {
     for (j in seq(from = i, to = k)) {
-      inv_cov[i, j] <- (llk_beta -
-        llk_beta_k[i] -
-        llk_beta_k[j] +
-        llk_beta_j_k[i, j]) /
-        (h^2)
+      inv_cov[i, j] <- ((llk_beta_k[i] - llk_beta) /
+        (n * h[i, i]^2) +
+        (llk_beta_k[j] - llk_beta) / (n * h[j, j]^2) -
+        (llk_beta_j_k[i, j] - llk_beta) / (n * h[i, j]^2))
       if (i != j) {
         inv_cov[j, i] <- inv_cov[i, j]
       }
@@ -372,7 +396,7 @@ vcov.ic_sp2 <- function(object, constant = 1, ...) {
   }
   result <- list()
   result$inv_cov <- inv_cov
-  result <- -solve(inv_cov)
+  result <- solve(inv_cov)
 
   colnames(result) <- rownames(result) <- names(object$coefficients)
 

@@ -167,6 +167,7 @@ void setup_icm(SEXP Rlind, SEXP Rrind, SEXP RCovars, SEXP R_w, SEXP R_strata,
        
     icm_obj->reg_d1.resize(reg_k);
     icm_obj->reg_d2.resize(reg_k, reg_k);
+    icm_obj->reg_d3.resize(reg_k);
     icm_obj->reg_par.resize(reg_k);
     double* regParPtr = REAL(R_RegPars);
     for(int i = 0; i < reg_k; i++){ icm_obj->reg_par[i] = regParPtr[i]; }
@@ -587,7 +588,97 @@ void icm_Abst::calcAnalyticRegDervs(Eigen::MatrixXd &hess, Eigen::VectorXd &d1){
     }
 }
 
+void icm_Abst::calcAnalyticRegDervs(Eigen::MatrixXd &hess, Eigen::VectorXd &d1, Eigen::VectorXd &d3){
+    int k = reg_par.size();
 
+    hess.resize(k, k);
+    d1.resize(k);
+    d3.resize(k);
+    for(int i = 0; i < k; i++){
+        d1[i] = 0;
+        d3[i] = 0;
+        hess(i,i) = 0;
+        if(useFullHess){
+            for(int j = 0; j < i; j++){hess(i,j) = 0.0; hess(j,i) = 0.0;}
+        }
+    }
+
+    for(int s = 0; s < n_strata; s++){
+        int n = etas[s].size();
+    
+        Eigen::VectorXd l_cont(n);
+        Eigen::VectorXd r_cont(n);
+        Eigen::VectorXd totCont(n);
+
+        Eigen::VectorXd l_cont2(n);
+        Eigen::VectorXd r_cont2(n);
+        Eigen::VectorXd totCont2(n);
+
+        Eigen::VectorXd l_cont3(n);
+        Eigen::VectorXd r_cont3(n);
+        Eigen::VectorXd totCont3(n);
+
+        int lind, rind;
+        double l_ch, r_ch, eta, pob, log_p;
+        for(int i = 0; i < n; i++){
+            l_cont[i]  = 0;
+            r_cont[i]  = 0;
+            l_cont2[i] = 0;
+            r_cont2[i] = 0;
+            l_cont3[i] = 0;
+            r_cont3[i] = 0;
+
+            lind = obs_inf[s][i].l;
+            rind = obs_inf[s][i].r;
+            pob  = obs_inf[s][i].pob;
+            log_p = log(pob);
+            l_ch = baseCH[s][lind];
+            r_ch = baseCH[s][rind + 1];
+            eta  = etas[s][i];
+            if(l_ch > R_NegInf){
+                l_cont[i]  = reg_d1_lnk(l_ch, eta, log_p);
+                l_cont2[i] = reg_d2_lnk(l_ch, eta, log_p);
+                l_cont3[i] = reg_d3_lnk(l_ch, eta, log_p);
+            }
+            if(r_ch < R_PosInf){
+                r_cont[i]  = -reg_d1_lnk(r_ch, eta, log_p);
+                r_cont2[i] = -reg_d2_lnk(r_ch, eta, log_p);
+                r_cont3[i] = -reg_d3_lnk(r_ch, eta, log_p);
+            }
+            totCont[i] = l_cont[i] + r_cont[i];
+            totCont2[i] = l_cont2[i] + r_cont2[i] - totCont[i] * totCont[i];
+            totCont3[i] = l_cont3[i] + r_cont3[i]
+                          - 3.0 * totCont[i] * totCont2[i]
+                          - totCont[i] * totCont[i] * totCont[i];
+        }
+
+        double this_covar;
+        double this_w;
+        double this_w_covar;
+        double this_totCont;
+        double this_totCont2;
+        double this_totCont3;
+        for(int i = 0; i < n; i++){
+            this_w = w[s][i];
+            this_totCont = totCont[i];
+            this_totCont2 = totCont2[i];
+            this_totCont3 = totCont3[i];
+            for(int a = 0; a < k; a++){
+                this_covar = covars[s](i,a);
+                this_w_covar = this_w * this_covar;
+                d1[a] += this_w_covar * this_totCont;
+                d3[a] += this_w_covar * this_covar * this_covar * this_totCont3;
+                if(useFullHess){
+                    for(int b = 0; b < a; b++){
+                        hess(a,b) += this_w_covar * covars[s](i,b) * this_totCont2;
+                        hess(b,a) = hess(a,b);
+                    }
+                }
+                hess(a,a) += this_w_covar * this_covar * this_totCont2;
+            }
+        }
+    }
+}
  
  
 void icm_Abst::covar_nr_step(){
@@ -680,13 +771,14 @@ SEXP ic_sp_ch(SEXP Rlind, SEXP Rrind, SEXP Rcovars, SEXP fitType,
     
     
     
-    SEXP ans = PROTECT(Rf_allocVector(VECSXP, 6));
+    SEXP ans = PROTECT(Rf_allocVector(VECSXP, 7));
     SEXP R_pans = PROTECT(Rf_allocVector(VECSXP,p_hat.size()));
     SEXP R_coef = PROTECT(Rf_allocVector(REALSXP, optObj->reg_par.size()));
     SEXP R_fnl_llk = PROTECT(Rf_allocVector(REALSXP, 1));
     SEXP R_its = PROTECT(Rf_allocVector(REALSXP, 1));
     SEXP R_score = PROTECT(Rf_allocVector(REALSXP, optObj->reg_par.size()));
     SEXP R_hessian = PROTECT(Rf_allocMatrix(REALSXP, optObj->reg_par.size(), optObj->reg_par.size()));
+    SEXP R_d3 = PROTECT(Rf_allocVector(REALSXP, optObj->reg_par.size()));
 
     for (size_t i = 0; i < p_hat.size(); ++i) {
         const std::vector<double>& inner = p_hat[i];
@@ -699,6 +791,7 @@ SEXP ic_sp_ch(SEXP Rlind, SEXP Rrind, SEXP Rcovars, SEXP fitType,
     for(int i = 0; i < optObj->reg_par.size(); i++){
         REAL(R_coef)[i] = optObj->reg_par[i];
         REAL(R_score)[i] = optObj->reg_d1[i];
+        REAL(R_d3)[i] = optObj->reg_d3[i];
     }
     
     // Copy Hessian matrix (column-major order for R)
@@ -717,8 +810,9 @@ SEXP ic_sp_ch(SEXP Rlind, SEXP Rrind, SEXP Rcovars, SEXP fitType,
     SET_VECTOR_ELT(ans, 3, R_its);
     SET_VECTOR_ELT(ans, 4, R_score);
     SET_VECTOR_ELT(ans, 5, R_hessian);
+    SET_VECTOR_ELT(ans, 6, R_d3);
     
-    UNPROTECT(7);
+    UNPROTECT(8);
 
     
     if(INTEGER(fitType)[0] == 1){
@@ -793,10 +887,8 @@ double icm_Abst::run(int maxIter, double tol, bool useGD, int baselineUpdates){
        }
     }
     
-    // For score test: compute score and information with optimized baseline
-    if (!updateCovars && reg_par.size() > 0) {
-        calcAnalyticRegDervs(reg_d2, reg_d1);
-    }
+    // Update final derivatives for return to R
+    calcAnalyticRegDervs(reg_d2, reg_d1, reg_d3);
     
     return(llk_new);
 }
