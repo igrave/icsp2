@@ -5,3 +5,4 @@
 - Remove code to focus on ic_sp() fitting
 - Add profile likelihood variance calculation for coefficients
 - Reimplement R code for model fitting and class implementation (S3 vs reference classes)
+- Add tests
