@@ -7,12 +7,13 @@
 \method{vcov}{ic_sp2}(object, typical = 1, large = 2, ...)
 }
 \arguments{
+\item{object}{Fitted model object from \code{ic_sp}}
+
 \item{typical}{A typical value for the regression parameters, used to determine the scale of \code{h_n}. Default is 1.}
 
-\item{large}{A large value for the regression parameters, used to determine the scale of \code{h_n}. Default is 2.
-#' @param ... Unused.}
+\item{large}{A large value for the regression parameters, used to determine the scale of \code{h_n}. Default is 2.}
 
-\item{fit}{Fitted model object from \code{ic_sp}}
+\item{...}{Unused.}
 }
 \value{
 Variance-covariance matrix of the regression parameters.

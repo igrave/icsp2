@@ -67,7 +67,7 @@ test_that("PH model works for sim data with variance estimation", {
     data = sim_data,
     control = ic_sp_control(derivMethod = c(12, 1))
   )
-  result_cov <- vcov(result, .2)
+  result_cov <- vcov(result)
 
   icr_result <- icenReg::ic_sp(
     Surv(l, u, type = 'interval2') ~ x1 + x2,

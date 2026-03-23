@@ -45,6 +45,10 @@ ic_sp_control <- function(
 #' @param formula A model formula with Surv(l, u, type = 'interval2') response and covariates on the right-hand side. May also contain `strata()` terms.
 #' @param data A data frame containing the variables in the formula, including strata terms.
 #' @param weights Optional vector of weights for each observation, or the name of a variable in `data` containing the weights.
+#' @param subset Optional expression indicating a subset of the rows of `data` to be used in the fit.
+#' @param na.action Optional function to handle missing data. Default is `na.omit`.
+#' @param model Type of model to fit. Choices are "ph" for proportional hazards and "po" for proportional odds. Default is "ph".
+#'   This is normally determined by the function aliases `ic_sp_ph` and `ic_sp_po`.
 #' @param B A vector of length 2 giving the lower and upper bounds for the observation times. Default is c(0, 1).
 #' @param control A list of control settings, with defaults created by [ic_sp_control()].
 #' @return A list containing the fitted model information, including coefficients, variance-covariance matrix, and other details.
@@ -85,7 +89,11 @@ ic_sp2 <- function(
     stop("Response must Surv(time1, time2, type = \"interval2\").")
   } else {
     response_mat <- as.matrix(model.response(mf))
-    response_mat[response_mat[, 3] == 0, 2] <- Inf
+    response_mat[response_mat[, "status"] == 0, 2] <- Inf
+    response_mat[response_mat[, "status"] == 1, "time2"] <- response_mat[
+      response_mat[, "status"] == 1,
+      "time1"
+    ]
     response_mat <- adjust_intervals(B, response_mat[, 1:2])
   }
 
@@ -273,7 +281,15 @@ ic_sp_po <- ic_sp2
     as.double(regStart),
     as.integer(derivMethod)
   )
-  names(c_ans) <- c('p_hat', 'coefficients', 'llk', 'iterations', 'score')
+  names(c_ans) <- c(
+    'p_hat',
+    'coefficients',
+    'llk',
+    'iterations',
+    'score',
+    'hessian',
+    'd3'
+  )
   result <- list() #new(model_type)
   result$p_hat <- lapply(c_ans$p_hat, function(p) p / sum(p))
   result$s <- lapply(result$p_hat, function(p) 1 - c(0, cumsum(p)))
@@ -281,6 +297,8 @@ ic_sp_po <- ic_sp2
   result$llk <- c_ans$llk
   result$iterations <- c_ans$iterations
   result$score <- c_ans$score
+  result$hessian <- c_ans$hessian
+  result$d3 <- c_ans$d3
   result[['intervals']] <- lapply(mi_info, function(mi) {
     rbind(mi[['mi_l']], mi[['mi_r']])
   })
@@ -290,10 +308,10 @@ ic_sp_po <- ic_sp2
 
 
 #' Profile Likelihood Covariance for Semi-Parametric Models
-#' @param fit Fitted model object from \code{ic_sp}
+#' @param object Fitted model object from \code{ic_sp}
 #' @param typical A typical value for the regression parameters, used to determine the scale of `h_n`. Default is 1.
 #' @param large A large value for the regression parameters, used to determine the scale of `h_n`. Default is 2.
-#' #' @param ... Unused.
+#' @param ... Unused.
 #' @return Variance-covariance matrix of the regression parameters.
 #' @details
 #' The covariance matrix is calculated using the profile likelihood approach
@@ -306,15 +324,15 @@ ic_sp_po <- ic_sp2
 #' @exportS3Method vcov ic_sp2
 vcov.ic_sp2 <- function(object, typical = 1, large = 2, ...) {
   fit <- object
-  if (!inherits(fit, "ic_sp_ph") && !inherits(fit, "ic_sp_po")) {
+  if (!inherits(object, "ic_sp_ph") && !inherits(object, "ic_sp_po")) {
     stop("Fit must be an object of class ic_sp_ph or ic_sp_po.")
   }
   stopifnot(is.numeric(typical), length(typical) == 1, typical > 0)
   stopifnot(is.numeric(large), length(large) == 1, large > 0)
-  n <- nrow(fit$.dataEnv$data)
-  k <- length(fit$coefficients)
+  n <- nrow(object$.dataEnv$data)
+  k <- length(object$coefficients)
 
-  llk_beta <- fit$llk
+  llk_beta <- object$llk
   llk_beta_k <- numeric(k)
   llk_beta_j_k <- matrix(NA, nrow = k, ncol = k)
 
@@ -339,18 +357,18 @@ vcov.ic_sp2 <- function(object, typical = 1, large = 2, ...) {
   }
 
   call_args <- list(
-    other_info = fit$other_info,
-    x = fit$.dataEnv$x,
-    y = fit$.dataEnv$y,
-    model_type = paste0("ic_", fit$model),
-    weights = fit$.dataEnv$weights,
-    strata = fit$.dataEnv$strata
+    other_info = object$other_info,
+    x = object$.dataEnv$x,
+    y = object$.dataEnv$y,
+    model_type = paste0("ic_", object$model),
+    weights = object$.dataEnv$weights,
+    strata = object$.dataEnv$strata
   )
   call_args$other_info$updateCovars <- FALSE
 
   for (i in seq_len(k)) {
     # fit the model with beta_i + h
-    beta <- fit$coefficients
+    beta <- object$coefficients
     beta[i] <- beta[i] + h[i, i]
     call_args$other_info$regStart <- beta
     new_fit <- do.call(.fit_ic_sp, call_args)
@@ -360,7 +378,7 @@ vcov.ic_sp2 <- function(object, typical = 1, large = 2, ...) {
   for (i in seq_len(k)) {
     for (j in seq(from = i, to = k)) {
       # fit the model with beta_i + h_i and beta_j + h_j
-      beta <- fit$coefficients
+      beta <- object$coefficients
       beta[i] <- beta[i] + h[i, j]
       beta[j] <- beta[j] + h[i, j]
       call_args$other_info$regStart <- beta

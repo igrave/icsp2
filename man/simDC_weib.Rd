@@ -44,5 +44,5 @@ and all values less than \code{upperLimit} are right censored.
 }
 \examples{
 simData <- simDC_weib()
-fit <- ic_par(cbind(l, u) ~ x1 + x2, data = simData)
+fit <- ic_sp_ph(Surv(l, u, type = "interval2") ~ x1 + x2, data = simData)
 }

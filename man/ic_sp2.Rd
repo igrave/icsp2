@@ -49,9 +49,16 @@ ic_sp_po(
 
 \item{weights}{Optional vector of weights for each observation, or the name of a variable in \code{data} containing the weights.}
 
+\item{subset}{Optional expression indicating a subset of the rows of \code{data} to be used in the fit.}
+
+\item{na.action}{Optional function to handle missing data. Default is \code{na.omit}.}
+
 \item{B}{A vector of length 2 giving the lower and upper bounds for the observation times. Default is c(0, 1).}
 
 \item{control}{A list of control settings, with defaults created by \code{\link[=ic_sp_control]{ic_sp_control()}}.}
+
+\item{model}{Type of model to fit. Choices are "ph" for proportional hazards and "po" for proportional odds. Default is "ph".
+This is normally determined by the function aliases \code{ic_sp_ph} and \code{ic_sp_po}.}
 }
 \value{
 A list containing the fitted model information, including coefficients, variance-covariance matrix, and other details.
