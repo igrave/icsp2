@@ -1,0 +1,7 @@
+^icsp2\.Rproj$
+^\.Rproj\.user$
+^\.vscode$
+^\.github$
+^local$
+^debug$
+^[.]?air[.]toml$
