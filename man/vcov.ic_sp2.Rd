@@ -4,16 +4,30 @@
 \alias{vcov.ic_sp2}
 \title{Profile Likelihood Covariance for Semi-Parametric Models}
 \usage{
-\method{vcov}{ic_sp2}(object, constant = 1, ...)
+\method{vcov}{ic_sp2}(object, typical = 1, large = 2, ...)
 }
 \arguments{
-\item{constant}{Multiplier for the constant \code{h_n} in the profile likelihood.
-Either length 1 or length equal to number of regression parameters.}
+\item{typical}{A typical value for the regression parameters, used to determine the scale of \code{h_n}. Default is 1.}
 
-\item{...}{Additional arguments.}
+\item{large}{A large value for the regression parameters, used to determine the scale of \code{h_n}. Default is 2.
+#' @param ... Unused.}
 
 \item{fit}{Fitted model object from \code{ic_sp}}
 }
+\value{
+Variance-covariance matrix of the regression parameters.
+}
 \description{
 Profile Likelihood Covariance for Semi-Parametric Models
+}
+\details{
+The covariance matrix is calculated using the profile likelihood approach
+described in Boruvka and Cook (2014). This method involves perturbing the
+regression parameters and refitting the model to estimate the curvature of
+the log-likelihood function, which is then used to compute the covariance matrix.
+The \code{typical} and \code{large} parameters are used to determine the scale of the
+perturbations.
+}
+\references{
+Boruvka, A., and Cook, R. J. (2015), A Cox-Aalen Model for Interval-censored Data. Scand J Statist, 42, 414–426. doi: 10.1111/sjos.12113.
 }
