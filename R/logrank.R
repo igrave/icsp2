@@ -22,12 +22,11 @@ compute_sun_statistic <- function(
   )
   group_levels <- levels(group_var)
   n_groups <- nlevels(group_var)
-  k_groups <- n_groups - 1L # degrees of freedom (compare groups 1..k vs reference K)
+  k_groups <- n_groups - 1L
   strata_levels <- levels(strata)
 
   T_s <- list()
-  statistic <- list()
-  var <- list()
+  U_s <- V_s <- list()
   for (s in seq_along(strata_levels)) {
     theta <- npmle_fit$p_hat[[s]]
     m <- length(theta)
@@ -41,9 +40,10 @@ compute_sun_statistic <- function(
     d_ij <- P_ij / rowSums(P_ij)
 
     n_jl <- d_jl <- matrix(0, nrow = n_groups, ncol = m)
+    group_var_s <- group_var[strata == strata_levels[s]]
     for (g in seq.int(n_groups)) {
       this_group <- group_levels[g]
-      d_jl[g, ] <- colSums(d_ij[group_var == this_group, , drop = FALSE])
+      d_jl[g, ] <- colSums(d_ij[group_var_s == this_group, , drop = FALSE])
       n_jl[g, ] <- rev(cumsum(rev(d_jl[g, ])))
     }
 
@@ -65,49 +65,25 @@ compute_sun_statistic <- function(
     }
 
     for (h in seq.int(H)) {
-      # imp <- apply(
-      #   S_ij,
-      #   1,
-      #   function(x) {
-      #     q <- runif(1)
-      #     j <- findInterval(q, x) + 1L
-      #     l <- mi_list[[s]]$mi_l[j]
-      #     r <- mi_list[[s]]$mi_r[j]
-      #     (l + r) / 2
-      #   }
-      # )
-
       q <- runif(nrow(S_ij))
       j <- rowSums(S_ij <= q) + 1L
       imp <- mi_list[[s]]$mi_r[j] #(mi_list[[s]]$mi_l[j] + mi_list[[s]]$mi_r[j]) / 2
 
-      svdf <- survdiff(Surv(imp, rep(1, length(imp))) ~ group_var)
+      svdf <- survdiff(Surv(imp, rep(1, length(imp))) ~ group_var_s)
       U[, h] <- svdf$obs[k_subset] - svdf$exp[k_subset]
       V[,, h] <- svdf$var[k_subset, k_subset]
     }
 
-    U_bar <- rowMeans(U) # dims=1 (default): average over H columns -> k-vector
+    U_s[[s]] <- rowMeans(U) # dims=1 (default): average over H columns -> k-vector
 
-    var[[s]] <- V_hat <- rowMeans(V, 2) -
-      ((U - U_bar) %*% t(U - U_bar)) / (H - 1)
-    statistic[[s]] <- t(U_bar) %*% solve(V_hat) %*% U_bar
+    V_s[[s]] <- rowMeans(V, dims = 2) -
+      ((U - U_s[[s]]) %*% t(U - U_s[[s]])) / (H - 1)
   }
-  list(T_s = T_s, statistic = statistic, var = var)
 
-  ## Variance calculation by HLY (2008)
-
-  # sample from interval probs, so sum the thetas, to get the probability of being in each interval,
-  # then sample from uniform to get time in that interval.
-  # mi_list[[1]]
-  # P_ij <- a_ij <- matrix(0, nrow = n, ncol = m)
-  # for (i in seq_len(n)) {
-  #     j_i <- seq.int(mi_list[[s]]$l_inds[i] + 1L, mi_list[[s]]$r_inds[i] + 1L)
-  #     a_ij[i, j_i] <- 1
-  #     P_ij[i, j_i] <- theta[j_i]
-  #   }
-  # mi_list[[1]]$l_inds + 1, mi_list[[1]]$r_inds + 1)
-  # npmle_fit$s[[1]][mi_list[[1]]$l_inds + 1]
-  # npmle_fit$s[[1]][mi_list[[1]]$r_inds + 2]
+  U_all <- Reduce("+", U_s)
+  V_all <- Reduce("+", V_s)
+  statistic <- as.numeric(t(U_all) %*% solve(V_all) %*% U_all)
+  list(T_s = T_s, statistic = statistic, var = V_all, U = U_all, U_strata = U_s)
 }
 
 
@@ -240,8 +216,15 @@ ic_logrank <- function(
   n_groups <- length(group_levels)
 
   # Get sample sizes per group
-  n_per_group <- table(group_var)
-
+  if (!is.null(original_strata)) {
+    n_per_group <- table(Group = group_var, Strata = original_strata)
+  } else {
+    n_per_group <- table(Group = group_var)
+  }
+  if (any(n_per_group == 0)) {
+    print(n_per_group)
+    stop("All groups must have at least one observation")
+  }
   # Check weights
   weights <- model.weights(mf)
   if (is.null(weights)) {
@@ -321,41 +304,7 @@ ic_logrank <- function(
 
 
 #' @exportS3Method print ic_logrank
-print.ic_logrank <- function(x, digits = 4, ...) {
-  cat("\n")
-  cat(x$method, "\n\n")
-  cat("Data: ", x$data.name, "\n")
-
-  if (!is.null(x$strata)) {
-    cat("Strata: ", paste(x$strata, collapse = ", "), "\n")
-  }
-
-  cat("\n")
-  cat("Groups:\n")
-  print(
-    data.frame(
-      Group = names(x$n),
-      N = as.numeric(x$n)
-    ),
-    row.names = FALSE
-  )
-
-  cat("\n")
-  cat("Test statistic:\n")
-  cat(sprintf(
-    "  Q = %.4f, df = %d, p-value = %.4g\n",
-    x$statistic,
-    x$parameter,
-    x$p.value
-  ))
-  cat("\n")
-
-  invisible(x)
-}
-
-
-#' @exportS3Method summary ic_logrank
-summary.ic_logrank <- function(object, ...) {
+print.ic_logrank <- function(object, digits = 4, ...) {
   cat("\n")
   cat(object$method, "\n")
   cat(strrep("=", nchar(object$method)), "\n\n")
@@ -364,55 +313,26 @@ summary.ic_logrank <- function(object, ...) {
   print(object$call)
   cat("\n")
 
-  if (!is.null(object$strata)) {
-    cat(
-      "Stratification variables:",
-      paste(object$strata, collapse = ", "),
-      "\n\n"
-    )
-  }
-
   cat("Sample sizes by group:\n")
-  print(
-    data.frame(
-      Group = names(object$n),
-      N = as.numeric(object$n),
-      Proportion = sprintf("%.1f%%", 100 * as.numeric(object$n) / sum(object$n))
-    ),
-    row.names = FALSE
-  )
+  print(object$n)
+
+  cat("Log-rank scores by group:\n")
+  print(object$logrank)
 
   cat("\n")
-  cat("Test Results:\n")
-  cat(sprintf("  Chi-squared statistic: Q = %.4f\n", object$statistic))
+  cat(sprintf(
+    "  Chi-squared statistic: Q = %s\n",
+    format(object$statistic, digits = digits)
+  ))
   cat(sprintf("  Degrees of freedom:    df = %d\n", object$parameter))
-  cat(sprintf("  P-value:               p = %.4g\n", object$p.value))
-
-  if (object$p.value < 0.001) {
-    cat("  ***\n")
-  } else if (object$p.value < 0.01) {
-    cat("  **\n")
-  } else if (object$p.value < 0.05) {
-    cat("  *\n")
-  } else if (object$p.value < 0.1) {
-    cat("  .\n")
-  }
-
-  cat("\n")
-  cat("Score vector U(0):\n")
-  print(round(object$score, 4))
-
-  cat("\n")
-  cat("Information matrix I(0):\n")
-  print(round(object$information, 4))
+  cat(sprintf(
+    "  P-value:               p = %s\n",
+    format.pval(object$p.value, digits = digits)
+  ))
 
   cat("\n")
   cat("Variance-covariance matrix:\n")
   print(round(object$var, 4))
-
-  cat("\n")
-  cat("---\n")
-  cat("Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1\n")
 
   invisible(object)
 }
