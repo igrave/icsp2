@@ -59,6 +59,8 @@ ic_sp_po(
 
 \item{model}{Type of model to fit. Choices are "ph" for proportional hazards and "po" for proportional odds. Default is "ph".
 This is normally determined by the function aliases \code{ic_sp_ph} and \code{ic_sp_po}.}
+
+\item{...}{Additional arguments passed to control.}
 }
 \value{
 A list containing the fitted model information, including coefficients, variance-covariance matrix, and other details.

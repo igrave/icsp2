@@ -51,6 +51,8 @@ ic_sp_control <- function(
 #'   This is normally determined by the function aliases `ic_sp_ph` and `ic_sp_po`.
 #' @param B A vector of length 2 giving the lower and upper bounds for the observation times. Default is c(0, 1).
 #' @param control A list of control settings, with defaults created by [ic_sp_control()].
+#' @param ... Additional arguments passed to control.
+#'
 #' @return A list containing the fitted model information, including coefficients, variance-covariance matrix, and other details.
 #' @export
 ic_sp2 <- function(

@@ -33,11 +33,11 @@ and a single grouping variable on the right-hand side. May also contain
 }
 \value{
 An object of class \code{ic_logrank} containing:
-\item{statistic}{The test statistic Q}
-\item{parameter}{Degrees of freedom}
+\item{logrank}{The log-rank statistics "observed - expected" for all groups and strata}
+\item{logrank_overall}{The log-rank statistics "observed - expected" for all groups}
+\item{statistic}{The overall chi-squared test statistic based on imputation}
+\item{df}{Degrees of freedom}
 \item{p.value}{P-value from chi-squared distribution}
-\item{score}{Score vector U(0)}
-\item{information}{Information matrix I(0)}
 \item{var}{Variance-covariance matrix I(0)^{-1}}
 \item{groups}{Group levels being compared}
 \item{n}{Sample sizes per group}
@@ -53,9 +53,16 @@ Performs Sun's (1996) non-parametric log-rank test for comparing survival
 distributions across groups with interval-censored data. This test compares
 group-specific NPMLE survival curves without assuming proportional hazards.
 
-The test statistic is Q = U(0)' I(0)^{-1} U(0), which follows a
+The test statistic is \eqn{Q = U(0)' I(0)^{-1} U(0)}, which follows a
 chi-squared distribution with k-1 degrees of freedom under the null
 hypothesis, where k is the number of groups.
+
+The variance calculation follows Huang, Lee and Yu (2008) using sampling
+exact observation times from the Turnball intervals.
+
+Statified tests are constructed by calculating the \eqn{\bar{U}} and \eqn{\hat{V}}
+results as per Huang et al (2008) in each strata and them summing over them
+to give a global test statistic \eqn{\sum\bar{U}' (\sum\hat{V})^{-1} \sum\bar{U}}.
 }
 \examples{
 # Simple two-group comparison
@@ -67,4 +74,8 @@ ic_logrank(Surv(l, u, type = "interval2") ~ grp, data = miceData)
 Sun, J. (1996). A non-parametric test for interval-censored failure time
 data with application to AIDS studies. \emph{Statistics in Medicine},
 15(13), 1387-1395.
+
+Huang, J., Lee, C., and Yu, Q. (2008). A Generalized Log-Rank Test
+for Interval-Censored Failure Time Data via Multiple Imputation.
+\emph{Statistics in Medicine 27:3217–3226}. http://dx.doi.org/10.1002/sim.3211
 }

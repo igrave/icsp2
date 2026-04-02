@@ -1,13 +1,13 @@
 #' Compute Sun's (1996) Log-Rank Test Statistic
 #'
 #' @param npmle_fit Output of .fit_ic_sp() with pooled NPMLE (one entry per stratum)
-#' @param mi_list Output of find_maximal_intersections() per stratum
+#' @param response_mat Matrix of response intervals (n x 2)
 #' @param group_var Factor of group assignments (same order as response_mat)
-#' @param group_levels Character vector of group level names
 #' @param strata Factor of stratum assignments (one level per stratum in npmle_fit)
+#' @param n_samples Number of samples for variance imputation
 #'
-#' @return List with statistic, score, information (V), var (V^-1)
-#' @keywords internal
+#' @return List with statistics for each stratum and overall
+#' @noRd
 compute_sun_statistic <- function(
   npmle_fit,
   response_mat,
@@ -52,12 +52,10 @@ compute_sun_statistic <- function(
     T_s[[s]] <- rowSums(d_jl - n_jl * rep(d_j / n_j, each = n_groups))
 
     H <- n_samples
-    # k_groups <- k_groups + 1
-    U <- matrix(0, nrow = k_groups, ncol = H)
-    V <- array(0, dim = c(k_groups, k_groups, H))
+    U <- matrix(0, nrow = n_groups, ncol = H)
+    V <- array(0, dim = c(n_groups, n_groups, H))
     k_subset <- seq.int(k_groups)
 
-    # Calculate this once (TODO check for stratum)
     S_ij <- matrix(0, nrow = nrow(P_ij), ncol = ncol(P_ij))
     P_row_sums <- rowSums(P_ij)
     for (i in seq_len(nrow(P_ij))) {
@@ -67,14 +65,14 @@ compute_sun_statistic <- function(
     for (h in seq.int(H)) {
       q <- runif(nrow(S_ij))
       j <- rowSums(S_ij <= q) + 1L
-      imp <- mi_list[[s]]$mi_r[j] #(mi_list[[s]]$mi_l[j] + mi_list[[s]]$mi_r[j]) / 2
+      imp <- mi_list[[s]]$mi_r[j] # unclear if this should be mi_l or mi_r
 
       svdf <- survdiff(Surv(imp, rep(1, length(imp))) ~ group_var_s)
-      U[, h] <- svdf$obs[k_subset] - svdf$exp[k_subset]
-      V[,, h] <- svdf$var[k_subset, k_subset]
+      U[, h] <- svdf$obs - svdf$exp
+      V[,, h] <- svdf$var
     }
 
-    U_s[[s]] <- rowMeans(U) # dims=1 (default): average over H columns -> k-vector
+    U_s[[s]] <- rowMeans(U)
 
     V_s[[s]] <- rowMeans(V, dims = 2) -
       ((U - U_s[[s]]) %*% t(U - U_s[[s]])) / (H - 1)
@@ -82,8 +80,21 @@ compute_sun_statistic <- function(
 
   U_all <- Reduce("+", U_s)
   V_all <- Reduce("+", V_s)
-  statistic <- as.numeric(t(U_all) %*% solve(V_all) %*% U_all)
-  list(T_s = T_s, statistic = statistic, var = V_all, U = U_all, U_strata = U_s)
+  statistic <- as.numeric(
+    t(U_all[k_subset]) %*% solve(V_all[k_subset, k_subset]) %*% U_all[k_subset]
+  )
+  T_strata <- do.call(cbind, T_s)
+  U_strata <- do.call(cbind, U_s)
+  rownames(T_strata) <- rownames(U_strata) <- group_levels
+  colnames(T_strata) <- colnames(U_strata) <- strata_levels
+  colnames(V_all) <- rownames(V_all) <- names(U_all) <- group_levels
+  list(
+    T_strata = T_strata,
+    statistic = statistic,
+    var = V_all,
+    U = U_all,
+    U_strata = U_strata
+  )
 }
 
 
@@ -100,11 +111,11 @@ compute_sun_statistic <- function(
 #' @param ... Additional arguments (currently unused).
 #'
 #' @return An object of class \code{ic_logrank} containing:
-#'   \item{statistic}{The test statistic Q}
-#'   \item{parameter}{Degrees of freedom}
+#'   \item{logrank}{The log-rank statistics "observed - expected" for all groups and strata}
+#'   \item{logrank_overall}{The log-rank statistics "observed - expected" for all groups}
+#'   \item{statistic}{The overall chi-squared test statistic based on imputation}
+#'   \item{df}{Degrees of freedom}
 #'   \item{p.value}{P-value from chi-squared distribution}
-#'   \item{score}{Score vector U(0)}
-#'   \item{information}{Information matrix I(0)}
 #'   \item{var}{Variance-covariance matrix I(0)^{-1}}
 #'   \item{groups}{Group levels being compared}
 #'   \item{n}{Sample sizes per group}
@@ -117,14 +128,25 @@ compute_sun_statistic <- function(
 #' distributions across groups with interval-censored data. This test compares
 #' group-specific NPMLE survival curves without assuming proportional hazards.
 #'
-#' The test statistic is Q = U(0)' I(0)^{-1} U(0), which follows a
+#' The test statistic is \eqn{Q = U(0)' I(0)^{-1} U(0)}, which follows a
 #' chi-squared distribution with k-1 degrees of freedom under the null
 #' hypothesis, where k is the number of groups.
+#'
+#' The variance calculation follows Huang, Lee and Yu (2008) using sampling
+#' exact observation times from the Turnball intervals.
+#'
+#' Statified tests are constructed by calculating the \eqn{\bar{U}} and \eqn{\hat{V}}
+#' results as per Huang et al (2008) in each strata and them summing over them
+#' to give a global test statistic \eqn{\sum\bar{U}' (\sum\hat{V})^{-1} \sum\bar{U}}.
 #'
 #' @references
 #' Sun, J. (1996). A non-parametric test for interval-censored failure time
 #' data with application to AIDS studies. \emph{Statistics in Medicine},
 #' 15(13), 1387-1395.
+#'
+#' Huang, J., Lee, C., and Yu, Q. (2008). A Generalized Log-Rank Test
+#' for Interval-Censored Failure Time Data via Multiple Imputation.
+#' \emph{Statistics in Medicine 27:3217–3226}. http://dx.doi.org/10.1002/sim.3211
 #'
 #' @examples
 #' # Simple two-group comparison
@@ -199,18 +221,15 @@ ic_logrank <- function(
     original_strata <- NULL
   }
 
-  # Extract group variable
-  remaining_terms <- attr(terms_obj, "term.labels")
-
-  if (length(remaining_terms) != 1) {
+  # Extract grouping variable
+  if (length(attr(terms_obj, "term.labels")) != 1) {
     stop("Formula should have exactly one grouping variable (not in strata)")
   }
 
-  group_var_name <- remaining_terms[1]
-  group_var <- mf[[group_var_name]]
-  if (!is.factor(group_var)) {
-    group_var <- as.factor(group_var)
-  }
+  group_var <- interaction(
+    mf[all.vars(delete.response(terms_obj))],
+    drop = TRUE
+  )
 
   group_levels <- levels(group_var)
   n_groups <- length(group_levels)
@@ -279,20 +298,19 @@ ic_logrank <- function(
 
   # Create result object
   result <- list(
-    logrank = unlist(sun_result$T_s),
+    logrank = sun_result$T_strata,
+    logrank_overall = rowSums(sun_result$T_strata),
     statistic = c(Q = as.numeric(sun_result$statistic)),
-    parameter = c(df = df),
+    df = c(df = df),
     p.value = p_value,
-    score = sun_result$score,
-    information = sun_result$information,
     var = sun_result$var,
     groups = group_levels,
     n = n_per_group,
     strata = if (!is.null(original_strata)) levels(original_strata) else NULL,
     method = if (!is.null(original_strata)) {
-      "Stratified Sun's non-parametric log-rank test for interval-censored data"
+      "Stratified Sun's log-rank test for interval-censored data"
     } else {
-      "Sun's non-parametric log-rank test for interval-censored data"
+      "Sun's log-rank test for interval-censored data"
     },
     data.name = deparse(substitute(data)),
     call = call
@@ -315,16 +333,17 @@ print.ic_logrank <- function(object, digits = 4, ...) {
 
   cat("Sample sizes by group:\n")
   print(object$n)
-
-  cat("Log-rank scores by group:\n")
-  print(object$logrank)
-
   cat("\n")
+
+  cat("Log-rank Statistics:\n")
+  print(object$logrank_overall)
+  cat("\n")
+
   cat(sprintf(
     "  Chi-squared statistic: Q = %s\n",
     format(object$statistic, digits = digits)
   ))
-  cat(sprintf("  Degrees of freedom:    df = %d\n", object$parameter))
+  cat(sprintf("  Degrees of freedom:    df = %d\n", object$df))
   cat(sprintf(
     "  P-value:               p = %s\n",
     format.pval(object$p.value, digits = digits)
