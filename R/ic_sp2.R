@@ -114,10 +114,7 @@ ic_sp2 <- function(
 
   attr(terms, "intercept") <- 1
   x <- model.matrix(terms, data = mf)[, -1, drop = FALSE]
-
-  call_info = readingCall(call) # TODO do we need this?
-
-  x_names = colnames(x)
+  x_names <- colnames(x)
   check_matrix(x)
 
   model_type <- if (call[[1]] == "ic_sp_ph") {
@@ -131,12 +128,18 @@ ic_sp2 <- function(
   weights <- check_weights(mf)
 
   if (!is.null(control$regStart)) {
+    if (length(control$regStart) != ncol(x)) {
+      stop(
+        "regStart must have length equal to the number of regression parameters.",
+        " Expected length ",
+        ncol(x),
+        " but got length ",
+        length(control$regStart)
+      )
+    }
     regStart <- control$regStart
   } else {
-    regStart <- rep(0, length(x_names))
-  }
-  if (length(regStart) != length(x_names)) {
-    stop("length of provided regression parameters wrong length")
+    regStart <- rep(0, ncol(x))
   }
 
   other_info <- list(
@@ -145,7 +148,7 @@ ic_sp2 <- function(
     baselineUpdates = control$baseUpdates,
     useFullHess = TRUE,
     updateCovars = control$updateCovars,
-    recenterCovars = (length(x_names) > 0),
+    recenterCovars = (ncol(x) > 0),
     regStart = regStart,
     derivMethod = control$derivMethod
   )
@@ -357,34 +360,19 @@ vcov.ic_sp2 <- function(object, typical = 1, large = 2, ...) {
         sqrt(n)
     }
   }
-
-  call_args <- list(
-    other_info = object$other_info,
-    x = object$.dataEnv$x,
-    y = object$.dataEnv$y,
-    model_type = paste0("ic_", object$model),
-    weights = object$.dataEnv$weights,
-    strata = object$.dataEnv$strata
-  )
-  call_args$other_info$updateCovars <- FALSE
-
   for (i in seq_len(k)) {
-    # fit the model with beta_i + h
     beta <- object$coefficients
     beta[i] <- beta[i] + h[i, i]
-    call_args$other_info$regStart <- beta
-    new_fit <- do.call(.fit_ic_sp, call_args)
+    new_fit <- profile_fit(object, beta)
     llk_beta_k[i] <- new_fit$llk
   }
 
   for (i in seq_len(k)) {
     for (j in seq(from = i, to = k)) {
-      # fit the model with beta_i + h_i and beta_j + h_j
       beta <- object$coefficients
       beta[i] <- beta[i] + h[i, j]
       beta[j] <- beta[j] + h[i, j]
-      call_args$other_info$regStart <- beta
-      new_fit <- do.call(.fit_ic_sp, call_args)
+      new_fit <- profile_fit(object, beta)
       llk_beta_j_k[i, j] <- new_fit$llk
       if (i != j) {
         llk_beta_j_k[j, i] <- new_fit$llk
@@ -412,6 +400,12 @@ vcov.ic_sp2 <- function(object, typical = 1, large = 2, ...) {
   result
 }
 
+
+#' Refit the model with fixed regression parameters
+#' @param object Fitted model object from \code{ic_sp}
+#' @param beta Vector of regression parameters to fix in the refit. Default is the original fitted regression parameters.
+#' @return Raw fitted model object with fixed regression parameters.
+#' @export
 profile_fit <- function(object, beta = object$coefficients) {
   call_args <- list(
     other_info = object$other_info,
@@ -436,7 +430,6 @@ print.ic_sp2 <- function(x, ...) {
   print(x$call)
   cat("\n")
   cat("Coefficients:\n")
-  # printCoefmat(x$coefficients)
   print(x$coefficients)
   cat("\n")
   cat(paste0("Log-likelihood: ", round(x$llk, 4), "\n"))

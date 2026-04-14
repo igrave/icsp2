@@ -1,4 +1,4 @@
-#' Compute Sun's (1996) Log-Rank Test Statistic
+#' Compute Log-Rank Test Statistic
 #'
 #' @param npmle_fit Output of .fit_ic_sp() with pooled NPMLE (one entry per stratum)
 #' @param response_mat Matrix of response intervals (n x 2)
@@ -8,13 +8,16 @@
 #'
 #' @return List with statistics for each stratum and overall
 #' @noRd
-compute_sun_statistic <- function(
+compute_statistic <- function(
   npmle_fit,
   response_mat,
   group_var,
   strata,
-  n_samples = 1000
+  n_samples = 1000,
+  type = c("sas", "hly")
 ) {
+  type <- match.arg(type, c("sas", "hly"))
+
   mi_list <- by(
     response_mat,
     strata,
@@ -31,25 +34,28 @@ compute_sun_statistic <- function(
     theta <- npmle_fit$p_hat[[s]]
     m <- length(theta)
     n <- length(mi_list[[s]]$l_inds)
-    P_ij <- a_ij <- matrix(0, nrow = n, ncol = m)
+    P_ij <- matrix(0, nrow = n, ncol = m)
     for (i in seq_len(n)) {
       j_i <- seq.int(mi_list[[s]]$l_inds[i] + 1L, mi_list[[s]]$r_inds[i] + 1L)
-      a_ij[i, j_i] <- 1
       P_ij[i, j_i] <- theta[j_i]
     }
-    d_ij <- P_ij / rowSums(P_ij)
-
-    n_jl <- d_jl <- matrix(0, nrow = n_groups, ncol = m)
     group_var_s <- group_var[strata == strata_levels[s]]
-    for (g in seq.int(n_groups)) {
-      this_group <- group_levels[g]
-      d_jl[g, ] <- colSums(d_ij[group_var_s == this_group, , drop = FALSE])
-      n_jl[g, ] <- rev(cumsum(rev(d_jl[g, ])))
-    }
 
-    d_j <- colSums(d_jl)
-    n_j <- colSums(n_jl)
-    T_s[[s]] <- rowSums(d_jl - n_jl * rep(d_j / n_j, each = n_groups))
+    if (type == "sas") {
+      d_ij <- P_ij / rowSums(P_ij)
+
+      n_jl <- d_jl <- matrix(0, nrow = n_groups, ncol = m)
+
+      for (g in seq.int(n_groups)) {
+        this_group <- group_levels[g]
+        d_jl[g, ] <- colSums(d_ij[group_var_s == this_group, , drop = FALSE])
+        n_jl[g, ] <- rev(cumsum(rev(d_jl[g, ])))
+      }
+
+      d_j <- colSums(d_jl)
+      n_j <- colSums(n_jl)
+      T_s[[s]] <- rowSums(d_jl - n_jl * rep(d_j / n_j, each = n_groups))
+    }
 
     H <- n_samples
     U <- matrix(0, nrow = n_groups, ncol = H)
@@ -65,7 +71,7 @@ compute_sun_statistic <- function(
     for (h in seq.int(H)) {
       q <- runif(nrow(S_ij))
       j <- rowSums(S_ij <= q) + 1L
-      imp <- mi_list[[s]]$mi_r[j] # unclear if this should be mi_l or mi_r
+      imp <- mi_list[[s]]$mi_r[j] # Does _l or _r make a difference?
 
       svdf <- survdiff(Surv(imp, rep(1, length(imp))) ~ group_var_s)
       U[, h] <- svdf$obs - svdf$exp
@@ -77,23 +83,24 @@ compute_sun_statistic <- function(
     V_s[[s]] <- rowMeans(V, dims = 2) -
       ((U - U_s[[s]]) %*% t(U - U_s[[s]])) / (H - 1)
   }
-
+  if (type == "sas") {
+    U_s <- T_s
+  }
   U_all <- Reduce("+", U_s)
   V_all <- Reduce("+", V_s)
   statistic <- as.numeric(
     t(U_all[k_subset]) %*% solve(V_all[k_subset, k_subset]) %*% U_all[k_subset]
   )
-  T_strata <- do.call(cbind, T_s)
+
   U_strata <- do.call(cbind, U_s)
-  rownames(T_strata) <- rownames(U_strata) <- group_levels
-  colnames(T_strata) <- colnames(U_strata) <- strata_levels
+  rownames(U_strata) <- group_levels
+  colnames(U_strata) <- strata_levels
   colnames(V_all) <- rownames(V_all) <- names(U_all) <- group_levels
   list(
-    T_strata = T_strata,
+    U_strata = U_strata,
     statistic = statistic,
     var = V_all,
-    U = U_all,
-    U_strata = U_strata
+    U = U_all
   )
 }
 
@@ -132,12 +139,19 @@ compute_sun_statistic <- function(
 #' chi-squared distribution with k-1 degrees of freedom under the null
 #' hypothesis, where k is the number of groups.
 #'
-#' The variance calculation follows Huang, Lee and Yu (2008) using sampling
-#' exact observation times from the Turnball intervals.
+#' The default test type is "sas", which uses Sun's test statistic combined
+#' with variance estimated based on the Huang, Lee and Yu (2008) procedure
+#' sampling exact observation times from the Turnball intervals.
 #'
-#' Statified tests are constructed by calculating the \eqn{\bar{U}} and \eqn{\hat{V}}
-#' results as per Huang et al (2008) in each strata and them summing over them
-#' to give a global test statistic \eqn{\sum\bar{U}' (\sum\hat{V})^{-1} \sum\bar{U}}.
+#' Alternatively, the "hly" type calculates the test statistic and variance
+#' using the multiple imputation approach of Huang, Lee and Yu (2008) directly.
+#'
+#' Stratified tests are constructed by calculating the \eqn{U} and \eqn{V}
+#' matrices for each stratum separately and then summing the stratum-specific
+#' matrices to give a global test statistic
+#' \eqn{\sum\bar{U}' (\sum\hat{V})^{-1} \sum\bar{U}}.
+#' This is the procedure described in the SAS documentation for PROC ICLIFETEST.
+#'
 #'
 #' @references
 #' Sun, J. (1996). A non-parametric test for interval-censored failure time
@@ -147,6 +161,10 @@ compute_sun_statistic <- function(
 #' Huang, J., Lee, C., and Yu, Q. (2008). A Generalized Log-Rank Test
 #' for Interval-Censored Failure Time Data via Multiple Imputation.
 #' \emph{Statistics in Medicine 27:3217–3226}. http://dx.doi.org/10.1002/sim.3211
+#'
+#' SAS Institute Inc. (2026). \emph{SAS/STAT® 26.03 User's Guide: The ICLIFETEST Procedure}.
+#' https://documentation.sas.com/doc/en/statug/latest/statug_iclifetest_details01.htm
+#' Accessed 14 April 2026.
 #'
 #' @examples
 #' # Simple two-group comparison
@@ -161,9 +179,17 @@ ic_logrank <- function(
   na.action,
   B = c(0, 1),
   n_samples = 1000,
+  type = c("sas", "hly"),
   ...
 ) {
   call <- match.call()
+  type <- match.arg(type, c("sas", "hly"))
+
+  if (is.numeric(n_samples) && n_samples > 1 && is.finite(n_samples)) {
+    n_samples <- as.integer(n_samples)
+  } else {
+    stop("n_samples should be a positive integer")
+  }
 
   # Check that formula has the correct structure
   if (length(formula) != 3) {
@@ -279,13 +305,13 @@ ic_logrank <- function(
     other_info = other_info
   )
 
-  # Compute Sun's score statistic
-  sun_result <- compute_sun_statistic(
+  sun_result <- compute_statistic(
     npmle_fit = npmle_fit,
     response_mat = response_mat,
     group_var = group_var,
     strata = npmle_strata,
-    n_samples = n_samples
+    n_samples = n_samples,
+    type = type
   )
 
   # Degrees of freedom
@@ -298,8 +324,8 @@ ic_logrank <- function(
 
   # Create result object
   result <- list(
-    logrank = sun_result$T_strata,
-    logrank_overall = rowSums(sun_result$T_strata),
+    logrank = sun_result$U_strata,
+    logrank_overall = rowSums(sun_result$U_strata),
     statistic = c(Q = as.numeric(sun_result$statistic)),
     df = c(df = df),
     p.value = p_value,
@@ -313,6 +339,7 @@ ic_logrank <- function(
       "Sun's log-rank test for interval-censored data"
     },
     data.name = deparse(substitute(data)),
+    n_samples = n_samples,
     call = call
   )
 
@@ -352,6 +379,7 @@ print.ic_logrank <- function(object, digits = 4, ...) {
   cat("\n")
   cat("Variance-covariance matrix:\n")
   print(round(object$var, 4))
-
+  cat("\n")
+  cat("Calculated with ", object$n_samples, " samples\n")
   invisible(object)
 }

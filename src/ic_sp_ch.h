@@ -60,7 +60,7 @@ public:
     void icm_addPar(int s, std::vector<double> &delta);
 
     void numericBaseDervsOne(int s, int raw_ind, std::vector<double> &d);
-    void numericBaseDervsAllAct(int s, std::vector<double> &d1, std::vector<double> &d2);
+    
     void analytical_dobs_dch(int s, std::vector<double> &d1, std::vector<double> &d2);
 
     void update_etas();

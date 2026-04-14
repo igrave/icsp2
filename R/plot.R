@@ -40,7 +40,7 @@ lines.ic_sp2 <- function(x, y, type = "s", strata, ...) {
   pars_dots$x <- unlist(
     lapply(x$intervals[strata], function(int) {
       list(
-        c(int[1, 1], int[1, ]),
+        c(0, int[1, ]),
         c(int[1, 1], int[2, ])
       )
     }),
@@ -93,8 +93,9 @@ plot.ic_sp2 <- function(
 
   if (!"xlim" %in% names(pars)) {
     xlim <- range(x, strata = strata, finite = TRUE)
+    xlim[1] <- 0
   } else {
-    xlim <- pars$ylim
+    xlim <- pars$xlim
   }
 
   plot(

@@ -408,7 +408,6 @@ void icm_Abst::gradientDescent_step(){
 		    new_llk = sum_llk(s);
 	    }
     } // end of loop over strata, s
-//	Rprintf("change in llk in CGA step = %f\n", new_llk - org_llk);	
 }
 
 
@@ -418,7 +417,7 @@ double icm_Abst::cal_log_obs(double s1, double s2, double eta){
     double l = baseS2CondS(s1, eta);
     double r = baseS2CondS(s2, eta);
     if (l - r <= 0){
-       Rprintf("warning: log obs prob calculation <= 0, s1 = %f, s2 = %f, eta = %f, l = %f, r = %f\n", s1, s2, eta, l, r);
+       warning("observation log probability is <= 0. (left = %f, right = %f)\n", l, r);
        throw("Log obs prob calculation -Inf");
     }
     return(log(l - r) );
@@ -499,18 +498,6 @@ void icm_Abst::numeric_dobs_dp(int s, bool forGA){
     		dob_dp_rightOnly[s][i] = 1.0/(num_n*thisProb);
     	}
     }
-    
-    // std::ofstream myfile; // added "std::"
-    // myfile.open("numeric.csv", std::ios::app); // append mode
-    // myfile << "Index,RightOnly,Both\n";
-    // for (int i = 0; i < n; i++) {
-    //     myfile << i << ",";
-    //     myfile << std::setprecision(8) << std::fixed << dob_dp_rightOnly[s][i];
-    //     myfile << ",";
-    //     myfile << std::setprecision(8) << std::fixed << dob_dp_both[s][i];
-    //     myfile << "\n";
-    // }
-    // myfile.close();
 
     base_p_derv[s].resize(k);
 	
@@ -555,13 +542,6 @@ void icm_Abst::analytical_dobs_dp(int s){
     for (int j = 0; j < k; j++) {
         base_p_derv[s][j] = 0;
     }
-
-    // std::ofstream myfile; // added "std::"
-    
-    // myfile.open("analytic.csv", std::ios::app); // append mode
-    // // myfile << "Index,right,both,left\n";
-    // myfile << "Index,RightOnly,Both\n";
-    
     
     for (int i = 0; i < n; i++) {
         double sl = baseS[s][ obs_inf[s][i].l];

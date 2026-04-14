@@ -11,6 +11,7 @@ ic_logrank(
   na.action,
   B = c(0, 1),
   n_samples = 1000,
+  type = c("sas", "hly"),
   ...
 )
 }
@@ -57,12 +58,18 @@ The test statistic is \eqn{Q = U(0)' I(0)^{-1} U(0)}, which follows a
 chi-squared distribution with k-1 degrees of freedom under the null
 hypothesis, where k is the number of groups.
 
-The variance calculation follows Huang, Lee and Yu (2008) using sampling
-exact observation times from the Turnball intervals.
+The default test type is "sas", which uses Sun's test statistic combined
+with variance estimated based on the Huang, Lee and Yu (2008) procedure
+sampling exact observation times from the Turnball intervals.
 
-Statified tests are constructed by calculating the \eqn{\bar{U}} and \eqn{\hat{V}}
-results as per Huang et al (2008) in each strata and them summing over them
-to give a global test statistic \eqn{\sum\bar{U}' (\sum\hat{V})^{-1} \sum\bar{U}}.
+Alternatively, the "hly" type calculates the test statistic and variance
+using the multiple imputation approach of Huang, Lee and Yu (2008) directly.
+
+Stratified tests are constructed by calculating the \eqn{U} and \eqn{V}
+matrices for each stratum separately and then summing the stratum-specific
+matrices to give a global test statistic
+\eqn{\sum\bar{U}' (\sum\hat{V})^{-1} \sum\bar{U}}.
+This is the procedure described in the SAS documentation for PROC ICLIFETEST.
 }
 \examples{
 # Simple two-group comparison
@@ -78,4 +85,8 @@ data with application to AIDS studies. \emph{Statistics in Medicine},
 Huang, J., Lee, C., and Yu, Q. (2008). A Generalized Log-Rank Test
 for Interval-Censored Failure Time Data via Multiple Imputation.
 \emph{Statistics in Medicine 27:3217–3226}. http://dx.doi.org/10.1002/sim.3211
+
+SAS Institute Inc. (2026). \emph{SAS/STAT® 26.03 User's Guide: The ICLIFETEST Procedure}.
+https://documentation.sas.com/doc/en/statug/latest/statug_iclifetest_details01.htm
+Accessed 14 April 2026.
 }
