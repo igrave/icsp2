@@ -123,7 +123,10 @@ test_that("ic test with hly type works", {
   ))
 
   expect_equal(result$p.value, expected_p)
-  expect_equal(result$p.value, 3.99406586107093e-08, tolerance = 1e-7)
+  expect_equal(
+    format.pval(result$p.value),
+    format.pval(3.99406586107093e-08)
+  )
 
   expect_equal(result$var[1, 1], 23.1582084)
 })
@@ -153,8 +156,10 @@ test_that("ic test with hly type works with strata", {
     lower.tail = FALSE
   ))
   expect_equal(result$p.value, expected_p)
-  expect_equal(result$p.value, 1.04555714969813e-07, tolerance = 1e-7)
-
+  expect_equal(
+    format.pval(result$p.value),
+    format.pval(1.04555714969813e-07)
+  )
   expect_equal(result$var[1, 1], 20.4593484)
 })
 
