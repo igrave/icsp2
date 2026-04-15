@@ -1,0 +1,24 @@
+url: https://igrave.github.io/icsp2/
+template:
+  bootstrap: 5
+
+# Create subsections in the reference index with main functions ic_logrank and ic_sp_ph and the others as "Other functions"
+reference:
+  - title: "Main  functions"
+    contents:
+      - ic_sp_ph
+      - ic_sp_po
+      - ic_logrank
+  - title: "Data"
+    contents:
+      - miceData
+      - IR_diabetes
+  - title: "Other functions"
+    contents:
+      - ic_sp_control
+      - lines.ic_sp2
+      - vcov.ic_sp2
+      - print.ic_sp2
+      - profile_fit
+      - simIC_weib
+      - cpp_logrank

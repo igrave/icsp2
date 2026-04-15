@@ -2,7 +2,7 @@
 % Please edit documentation in R/cpp_logrank.R
 \name{cpp_logrank}
 \alias{cpp_logrank}
-\title{Fast log-rank test via C++}
+\title{Internal fast log-rank test implementation}
 \usage{
 cpp_logrank(time, event, group)
 }
@@ -24,8 +24,9 @@ An object of class \code{"cpp_logrank"}, a list with components:
 }
 }
 \description{
-This is an internal implementation for use within \link{ic_logrank} where
-many tests need to be performed efficiently for variance calculation.
+This is an internal implementation of right-censored logrank test
+for use within \link{ic_logrank} where many tests need to be performed
+efficiently for variance calculation.
 }
 \examples{
 set.seed(1992)

@@ -9,15 +9,15 @@ fastNumericInsert_cpp <- function(newVals, target, indices) {
     .Call(`_icsp2_fastNumericInsert_cpp`, newVals, target, indices)
 }
 
+fast_logrank <- function(time, event, group) {
+    .Call(`_icsp2_fast_logrank`, time, event, group)
+}
+
 ic_sp_ch <- function(Rlind, Rrind, Rcovars, fitType, R_w, R_strata, R_use_GD, R_maxiter, R_baselineUpdates, R_useFullHess, R_updateCovars, R_initialRegVals, R_derivMethod) {
     .Call(`_icsp2_ic_sp_ch`, Rlind, Rrind, Rcovars, fitType, R_w, R_strata, R_use_GD, R_maxiter, R_baselineUpdates, R_useFullHess, R_updateCovars, R_initialRegVals, R_derivMethod)
 }
 
 findMI <- function(R_AllVals, isL, isR, lVals, rVals) {
     .Call(`_icsp2_findMI`, R_AllVals, isL, isR, lVals, rVals)
-}
-
-fast_logrank <- function(time, event, group) {
-    .Call(`_icsp2_fast_logrank`, time, event, group)
 }
 

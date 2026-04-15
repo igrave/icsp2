@@ -1,7 +1,8 @@
-#' Fast log-rank test via C++
+#' Internal fast log-rank test implementation
 #'
-#' This is an internal implementation for use within [ic_logrank] where
-#' many tests need to be performed efficiently for variance calculation.
+#' This is an internal implementation of right-censored logrank test
+#' for use within [ic_logrank] where many tests need to be performed
+#' efficiently for variance calculation.
 #'
 #' @param time Numeric vector of survival/censoring times.
 #' @param event Integer vector of event indicators (1 = event, 0 = censored).

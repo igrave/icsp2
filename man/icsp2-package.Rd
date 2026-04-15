@@ -11,12 +11,13 @@ Semi-parametric survival models for interval censored data with stratification, 
 \seealso{
 Useful links:
 \itemize{
-  \item \url{github.com/igrave/icsp2}
+  \item \url{https://igrave.github.io/icsp2/}
+  \item Report bugs at \url{https://github.com/igrave/icsp2/issues}
 }
 
 }
 \author{
-\strong{Maintainer}: Isaac Gravestock \email{isaac.gravestock@gmail.com}
+\strong{Maintainer}: Isaac Gravestock \email{isaac.gravestock@gmail.com} (\href{https://orcid.org/0000-0003-0283-2065}{ORCID})
 
 Authors:
 \itemize{
