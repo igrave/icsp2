@@ -7,7 +7,8 @@ Authors@R:
         person("Clifford", "Anderson-Bergman", , role = c("aut"))
     )
 Description: Semi-parametric survival models for interval censored data with stratification, based on the `icenReg` package, including model fitting and testing.
-URL: github.com/igrave/icsp2
+BugReports: github.com/igrave/icsp2
+URL: https://igrave.github.io/icsp2/
 License: LGPL (>= 2.0, < 3)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)

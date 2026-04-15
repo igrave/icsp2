@@ -11,7 +11,8 @@ Semi-parametric survival models for interval censored data with stratification, 
 \seealso{
 Useful links:
 \itemize{
-  \item \url{github.com/igrave/icsp2}
+  \item \url{https://igrave.github.io/icsp2/}
+  \item Report bugs at \url{github.com/igrave/icsp2}
 }
 
 }

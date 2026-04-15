@@ -5,3 +5,6 @@
 ^local$
 ^debug$
 ^[.]?air[.]toml$
+^_pkgdown\.yml$
+^docs$
+^pkgdown$
