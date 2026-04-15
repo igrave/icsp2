@@ -17,3 +17,7 @@ findMI <- function(R_AllVals, isL, isR, lVals, rVals) {
     .Call(`_icsp2_findMI`, R_AllVals, isL, isR, lVals, rVals)
 }
 
+fast_logrank <- function(time, event, group) {
+    .Call(`_icsp2_fast_logrank`, time, event, group)
+}
+
