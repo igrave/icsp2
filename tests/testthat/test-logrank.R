@@ -91,7 +91,10 @@ test_that("ic test with sas type works", {
   ))
 
   expect_equal(result$p.value, expected_p)
-  expect_equal(result$p.value, 3.62680505591868e-08)
+  expect_equal(
+    format.pval(result$p.value),
+    format.pval(3.62680505591868e-08)
+  )
 
   expect_equal(result$var[1, 1], 23.1582084)
 })
