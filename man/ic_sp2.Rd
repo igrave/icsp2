@@ -57,7 +57,7 @@ ic_sp_po(
 
 \item{control}{A list of control settings, with defaults created by \code{\link[=ic_sp_control]{ic_sp_control()}}.}
 
-\item{model}{Type of model to fit. Choices are "ph" for proportional hazards and "po" for proportional odds. Default is "ph".
+\item{model}{Type of model to fit. Choices are \code{"ph"} for proportional hazards and \code{"po"} for proportional odds. Default is \code{"ph"}.
 This is normally determined by the function aliases \code{ic_sp_ph} and \code{ic_sp_po}.}
 
 \item{...}{Additional arguments passed to control.}

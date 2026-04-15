@@ -1,7 +1,8 @@
 # icsp2 0.0.0.9000
-* Starts from fork of icenReg (v2.0.16)
+* Starts from fork of `icenReg` (v2.0.16)
 * Implements strata for semi-parametric fits in C++
 * Remove code to focus on ic_sp() fitting
 * Add profile likelihood variance calculation for coefficients
-* Reimplement R code for model fitting and class implementation (S3 vs reference classes)
+* Re-implement R code for model fitting and class implementation (S3 vs reference classes)
+* Implement logrank type tests
 * Add tests

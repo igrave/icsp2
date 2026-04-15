@@ -41,7 +41,8 @@ resulting in a continuous inspection time}
 \item{prob_cen}{probability event being censored. If event is uncensored, l == u}
 }
 \description{
-Simulates interval censored data from a regression model with a weibull baseline distribution. Used for demonstration
+Simulates interval censored data from a regression model with a Weibull
+baseline distribution. Used for demonstration
 }
 \details{
 Exact event times are simulated according to regression model: covariate \code{x1}
@@ -58,7 +59,7 @@ set.seed(1)
 sim_data <- simIC_weib(n = 500, b1 = .3, b2 = -.3, model = 'ph',
                       shape = 2, scale = 2, inspections = 6,
                       inspectLength = 1)
-#simulates data from a cox-ph with beta weibull distribution.
+#simulates data from a cox-ph with beta Weibull distribution.
 
 ic_sp_ph(Surv(l, u, type = 'interval2') ~ x1 + x2, data = sim_data)
 ic_sp_po(Surv(l, u, type = 'interval2') ~ x1 + x2, data = sim_data)

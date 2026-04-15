@@ -22,7 +22,7 @@ Mice were placed in two different groups: conventional environment or germ free 
 
 \item{\code{u}}{right side of observation interval}
 
-\item{\code{grp}}{Group for mouse. Either ce (conventional environment) or ge (grem-free environment)}
+\item{\code{grp}}{Group for mouse. Either \code{"ce"} (conventional environment) or \code{"ge"} (germ-free environment)}
 }}
 
 \examples{

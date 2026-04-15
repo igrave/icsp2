@@ -30,6 +30,8 @@ and a single grouping variable on the right-hand side. May also contain
 
 \item{n_samples}{The number of "imputation" samples for the variance calculation. Default is 1000.}
 
+\item{type}{The method for calculating the test statistic and variance. Options are \code{"sas"} (default) or \code{"hly"}.}
+
 \item{...}{Additional arguments (currently unused).}
 }
 \value{
@@ -39,7 +41,7 @@ An object of class \code{ic_logrank} containing:
 \item{statistic}{The overall chi-squared test statistic based on imputation}
 \item{df}{Degrees of freedom}
 \item{p.value}{P-value from chi-squared distribution}
-\item{var}{Variance-covariance matrix I(0)^{-1}}
+\item{var}{Variance-covariance matrix}
 \item{groups}{Group levels being compared}
 \item{n}{Sample sizes per group}
 \item{method}{Description of test method}
@@ -58,11 +60,11 @@ The test statistic is \eqn{Q = U(0)' I(0)^{-1} U(0)}, which follows a
 chi-squared distribution with k-1 degrees of freedom under the null
 hypothesis, where k is the number of groups.
 
-The default test type is "sas", which uses Sun's test statistic combined
+The default test type is \code{"sas"}, which uses Sun's test statistic combined
 with variance estimated based on the Huang, Lee and Yu (2008) procedure
-sampling exact observation times from the Turnball intervals.
+sampling exact observation times from the Turnbull intervals.
 
-Alternatively, the "hly" type calculates the test statistic and variance
+Alternatively, the \code{"hly"} type calculates the test statistic and variance
 using the multiple imputation approach of Huang, Lee and Yu (2008) directly.
 
 Stratified tests are constructed by calculating the \eqn{U} and \eqn{V}
@@ -84,9 +86,9 @@ data with application to AIDS studies. \emph{Statistics in Medicine},
 
 Huang, J., Lee, C., and Yu, Q. (2008). A Generalized Log-Rank Test
 for Interval-Censored Failure Time Data via Multiple Imputation.
-\emph{Statistics in Medicine 27:3217–3226}. http://dx.doi.org/10.1002/sim.3211
+\emph{Statistics in Medicine 27:3217–3226}. \url{http://dx.doi.org/10.1002/sim.3211}
 
 SAS Institute Inc. (2026). \emph{SAS/STAT® 26.03 User's Guide: The ICLIFETEST Procedure}.
-https://documentation.sas.com/doc/en/statug/latest/statug_iclifetest_details01.htm
+\url{https://documentation.sas.com/doc/en/statug/latest/statug_iclifetest_details01.htm}
 Accessed 14 April 2026.
 }

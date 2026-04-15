@@ -1,4 +1,4 @@
-test_that("simEventTime works for ph and weibull", {
+test_that("simEventTime works for ph and Weibull", {
   set.seed(1951)
   n <- 10
   x1 <- runif(n, -1, 1)

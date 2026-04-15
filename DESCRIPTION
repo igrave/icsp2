@@ -6,7 +6,7 @@ Authors@R:
         person("Isaac", "Gravestock", ,"isaac.gravestock@gmail.com", role = c("aut", "cre")),
         person("Clifford", "Anderson-Bergman", , role = c("aut"))
     )
-Description: A modified implementation of the interval-censored proportional hazards model allowing for stratification, based on icenReg.
+Description: Semi-parametric survival models for interval censored data with stratification, based on the `icenReg` package, including model fitting and testing.
 URL: github.com/igrave/icsp2
 License: LGPL (>= 2.0, < 3)
 Encoding: UTF-8
@@ -26,3 +26,4 @@ Suggests:
     vdiffr
 Config/testthat/edition: 3
 LazyData: TRUE
+language: en

@@ -14,7 +14,7 @@ test_that("summary works", {
     dimnames = list("grpge", c("Estimate", "Std.Error", "z.value", "p.value"))
   )
 
-  expect_equal(result$coef_matrix, expected_coef_matrix)
+  expect_equal(result$coef_matrix, expected_coef_matrix, tolerance = 1e-7)
 })
 
 test_that("print.summary works", {

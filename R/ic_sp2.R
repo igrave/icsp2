@@ -12,13 +12,13 @@
 #' Defaults not intended to be changed for use in standard analyses.
 #'
 #' @details
-#' The constrained gradient step, actived by \code{useGA = TRUE},
+#' The constrained gradient step, controlled by \code{useGA = TRUE},
 #' is a step that was added to improve the convergence in a special case.
-#' The option to turn it off is only in place to help demonstrate it's utility.
+#' The option to turn it off is only in place to help demonstrate its utility.
 #'
 #'  \code{regStart} also for seeding of initial value of regression parameters.
 #'  Intended for use in ``warm start" for bootstrap samples
-#'  and providing fixed regression parameters when calculating fit in qq-plots.
+#'  and providing fixed regression parameters.
 #'
 #' @export
 ic_sp_control <- function(
@@ -47,7 +47,7 @@ ic_sp_control <- function(
 #' @param weights Optional vector of weights for each observation, or the name of a variable in `data` containing the weights.
 #' @param subset Optional expression indicating a subset of the rows of `data` to be used in the fit.
 #' @param na.action Optional function to handle missing data. Default is `na.omit`.
-#' @param model Type of model to fit. Choices are "ph" for proportional hazards and "po" for proportional odds. Default is "ph".
+#' @param model Type of model to fit. Choices are `"ph"` for proportional hazards and `"po"` for proportional odds. Default is `"ph"`.
 #'   This is normally determined by the function aliases `ic_sp_ph` and `ic_sp_po`.
 #' @param B A vector of length 2 giving the lower and upper bounds for the observation times. Default is c(0, 1).
 #' @param control A list of control settings, with defaults created by [ic_sp_control()].
@@ -218,7 +218,7 @@ ic_sp_po <- ic_sp2
 #' @param model_type Model type: "ic_ph" or "ic_po"
 #' @param other_info List of other fitting options
 #' @return Fitted model object
-#' @export
+#' @noRd
 #' @details
 #' For advanced use only. This function is called internally by `ic_sp_ph`
 #'  and `ic_sp_po`.
@@ -231,13 +231,6 @@ ic_sp_po <- ic_sp2
   model_type,
   other_info
 ) {
-  # obsMat,
-  # covars,
-  # callText = 'ic_ph',
-  # weights,
-  # strata,
-  # other_info
-
   if (any(y[, 1] > y[, 2])) {
     stop(
       "left side of response interval greater than right side. This is impossible."

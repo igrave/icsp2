@@ -71,8 +71,10 @@ compute_statistic <- function(
     for (h in seq.int(H)) {
       q <- runif(nrow(S_ij))
       j <- rowSums(S_ij <= q) + 1L
-      imp <- mi_list[[s]]$mi_r[j] # Does _l or _r make a difference?
-
+      imp <- mi_list[[s]]$mi_l[j] # Does _l or _r make a difference?
+      if (any(is.infinite(imp))) {
+        browser()
+      }
       svdf <- survdiff(Surv(imp, rep(1, length(imp))) ~ group_var_s)
       U[, h] <- svdf$obs - svdf$exp
       V[,, h] <- svdf$var
@@ -115,6 +117,7 @@ compute_statistic <- function(
 #' @param na.action Function to handle missing values.
 #' @param B A vector of length 2 giving bounds for observation times. Default is c(0, 1).
 #' @param n_samples The number of "imputation" samples for the variance calculation. Default is 1000.
+#' @param type The method for calculating the test statistic and variance. Options are `"sas"` (default) or `"hly"`.
 #' @param ... Additional arguments (currently unused).
 #'
 #' @return An object of class \code{ic_logrank} containing:
@@ -123,7 +126,7 @@ compute_statistic <- function(
 #'   \item{statistic}{The overall chi-squared test statistic based on imputation}
 #'   \item{df}{Degrees of freedom}
 #'   \item{p.value}{P-value from chi-squared distribution}
-#'   \item{var}{Variance-covariance matrix I(0)^{-1}}
+#'   \item{var}{Variance-covariance matrix}
 #'   \item{groups}{Group levels being compared}
 #'   \item{n}{Sample sizes per group}
 #'   \item{method}{Description of test method}
@@ -139,11 +142,11 @@ compute_statistic <- function(
 #' chi-squared distribution with k-1 degrees of freedom under the null
 #' hypothesis, where k is the number of groups.
 #'
-#' The default test type is "sas", which uses Sun's test statistic combined
+#' The default test type is `"sas"`, which uses Sun's test statistic combined
 #' with variance estimated based on the Huang, Lee and Yu (2008) procedure
-#' sampling exact observation times from the Turnball intervals.
+#' sampling exact observation times from the Turnbull intervals.
 #'
-#' Alternatively, the "hly" type calculates the test statistic and variance
+#' Alternatively, the `"hly"` type calculates the test statistic and variance
 #' using the multiple imputation approach of Huang, Lee and Yu (2008) directly.
 #'
 #' Stratified tests are constructed by calculating the \eqn{U} and \eqn{V}
@@ -160,10 +163,10 @@ compute_statistic <- function(
 #'
 #' Huang, J., Lee, C., and Yu, Q. (2008). A Generalized Log-Rank Test
 #' for Interval-Censored Failure Time Data via Multiple Imputation.
-#' \emph{Statistics in Medicine 27:3217–3226}. http://dx.doi.org/10.1002/sim.3211
+#' \emph{Statistics in Medicine 27:3217–3226}. \url{http://dx.doi.org/10.1002/sim.3211}
 #'
 #' SAS Institute Inc. (2026). \emph{SAS/STAT® 26.03 User's Guide: The ICLIFETEST Procedure}.
-#' https://documentation.sas.com/doc/en/statug/latest/statug_iclifetest_details01.htm
+#' \url{https://documentation.sas.com/doc/en/statug/latest/statug_iclifetest_details01.htm}
 #' Accessed 14 April 2026.
 #'
 #' @examples
@@ -349,37 +352,37 @@ ic_logrank <- function(
 
 
 #' @exportS3Method print ic_logrank
-print.ic_logrank <- function(object, digits = 4, ...) {
+print.ic_logrank <- function(x, ..., digits = 4) {
   cat("\n")
-  cat(object$method, "\n")
-  cat(strrep("=", nchar(object$method)), "\n\n")
+  cat(x$method, "\n")
+  cat(strrep("=", nchar(x$method)), "\n\n")
 
   cat("Call:\n")
-  print(object$call)
+  print(x$call)
   cat("\n")
 
   cat("Sample sizes by group:\n")
-  print(object$n)
+  print(x$n)
   cat("\n")
 
   cat("Log-rank Statistics:\n")
-  print(object$logrank_overall)
+  print(x$logrank_overall)
   cat("\n")
 
   cat(sprintf(
     "  Chi-squared statistic: Q = %s\n",
-    format(object$statistic, digits = digits)
+    format(x$statistic, digits = digits)
   ))
-  cat(sprintf("  Degrees of freedom:    df = %d\n", object$df))
+  cat(sprintf("  Degrees of freedom:    df = %d\n", x$df))
   cat(sprintf(
     "  P-value:               p = %s\n",
-    format.pval(object$p.value, digits = digits)
+    format.pval(x$p.value, digits = digits)
   ))
 
   cat("\n")
   cat("Variance-covariance matrix:\n")
-  print(round(object$var, 4))
+  print(round(x$var, 4))
   cat("\n")
-  cat("Calculated with ", object$n_samples, " samples\n")
-  invisible(object)
+  cat("Calculated with ", x$n_samples, " samples\n")
+  invisible(x)
 }

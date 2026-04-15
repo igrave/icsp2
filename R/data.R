@@ -3,7 +3,7 @@
 #' @docType data
 #' @field l    left side of observation interval
 #' @field u    right side of observation interval
-#' @field grp  Group for mouse. Either ce (conventional environment) or ge (grem-free environment)
+#' @field grp  Group for mouse. Either `"ce"` (conventional environment) or `"ge"` (germ-free environment)
 #'
 #' @description
 #' RFM mice were sacrificed and examined for lung tumors. This resulted in current status interval censored data:

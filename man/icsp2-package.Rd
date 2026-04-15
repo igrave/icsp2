@@ -6,7 +6,7 @@
 \alias{icsp2-package}
 \title{icsp2: Stratified interval-censored semi-parametric survival models}
 \description{
-A modified implementation of the interval-censored proportional hazards model allowing for stratification, based on icenReg.
+Semi-parametric survival models for interval censored data with stratification, based on the `icenReg` package, including model fitting and testing.
 }
 \seealso{
 Useful links:
