@@ -21,3 +21,4 @@ reference:
       - print.ic_sp2
       - profile_fit
       - simIC_weib
+      - cpp_logrank

@@ -37,6 +37,19 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// fast_logrank
+List fast_logrank(NumericVector time, IntegerVector event, IntegerVector group);
+RcppExport SEXP _icsp2_fast_logrank(SEXP timeSEXP, SEXP eventSEXP, SEXP groupSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type time(timeSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type event(eventSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type group(groupSEXP);
+    rcpp_result_gen = Rcpp::wrap(fast_logrank(time, event, group));
+    return rcpp_result_gen;
+END_RCPP
+}
 // ic_sp_ch
 SEXP ic_sp_ch(SEXP Rlind, SEXP Rrind, SEXP Rcovars, SEXP fitType, SEXP R_w, SEXP R_strata, SEXP R_use_GD, SEXP R_maxiter, SEXP R_baselineUpdates, SEXP R_useFullHess, SEXP R_updateCovars, SEXP R_initialRegVals, SEXP R_derivMethod);
 RcppExport SEXP _icsp2_ic_sp_ch(SEXP RlindSEXP, SEXP RrindSEXP, SEXP RcovarsSEXP, SEXP fitTypeSEXP, SEXP R_wSEXP, SEXP R_strataSEXP, SEXP R_use_GDSEXP, SEXP R_maxiterSEXP, SEXP R_baselineUpdatesSEXP, SEXP R_useFullHessSEXP, SEXP R_updateCovarsSEXP, SEXP R_initialRegValsSEXP, SEXP R_derivMethodSEXP) {
@@ -75,26 +88,13 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// fast_logrank
-List fast_logrank(NumericVector time, IntegerVector event, IntegerVector group);
-RcppExport SEXP _icsp2_fast_logrank(SEXP timeSEXP, SEXP eventSEXP, SEXP groupSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector >::type time(timeSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type event(eventSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type group(groupSEXP);
-    rcpp_result_gen = Rcpp::wrap(fast_logrank(time, event, group));
-    return rcpp_result_gen;
-END_RCPP
-}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_icsp2_pava", (DL_FUNC) &_icsp2_pava, 3},
     {"_icsp2_fastNumericInsert_cpp", (DL_FUNC) &_icsp2_fastNumericInsert_cpp, 3},
+    {"_icsp2_fast_logrank", (DL_FUNC) &_icsp2_fast_logrank, 3},
     {"_icsp2_ic_sp_ch", (DL_FUNC) &_icsp2_ic_sp_ch, 13},
     {"_icsp2_findMI", (DL_FUNC) &_icsp2_findMI, 5},
-    {"_icsp2_fast_logrank", (DL_FUNC) &_icsp2_fast_logrank, 3},
     {NULL, NULL, 0}
 };
 
