@@ -34,11 +34,11 @@ Defaults not intended to be changed for use in standard analyses.}
 Control ic_sp2 fitting options
 }
 \details{
-The constrained gradient step, actived by \code{useGA = TRUE},
+The constrained gradient step, controlled by \code{useGA = TRUE},
 is a step that was added to improve the convergence in a special case.
-The option to turn it off is only in place to help demonstrate it's utility.
+The option to turn it off is only in place to help demonstrate its utility.
 
 \code{regStart} also for seeding of initial value of regression parameters.
 Intended for use in ``warm start" for bootstrap samples
-and providing fixed regression parameters when calculating fit in qq-plots.
+and providing fixed regression parameters.
 }

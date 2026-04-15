@@ -300,18 +300,6 @@ void icm_Abst::numericBaseDervsOne(int s, int raw_ind, std::vector<double> &dvec
     h = h * 25.0;
 }
 
-void icm_Abst::numericBaseDervsAllAct(int s, std::vector<double> &d1, std::vector<double> &d2){
-    int k = baseCH[s].size();
-    d1.resize(k);
-    d2.resize(k);
-    std::vector<double> ind_dervs(2);
-    for(int i = 1; i < (k-1); i++){
-        numericBaseDervsOne(s, i, ind_dervs);
-        d1[i] = ind_dervs[0];
-        d2[i] = ind_dervs[1];
-    }
-}
-
 void icm_Abst::numericBaseDervsAllRaw(int s, std::vector<double> &d1, std::vector<double> &d2){
     int k = baseCH[s].size() - 2;
     d1.resize(k);
@@ -421,24 +409,7 @@ void icm_Abst::icm_step_s(int s){
             return;
         }
      
-
-        if (false) {
-        std::ofstream myfile; // added "std::"
-        myfile.open("dch.csv", std::ios::app); // append mode
-        myfile << "Index,d1,d2\n";
-        for (int i = 0; i < d1.size(); i++) {
-            myfile << i << ",";
-            myfile << std::setprecision(8) << std::fixed << d1[i];
-            myfile << ",";
-            myfile << std::setprecision(8) << std::fixed << d2[i];
-            myfile << "\n";
-        }
-        myfile.close();
-    }
-
         int thisSize = d1.size();
-
-
 
         for(int i = 0; i < thisSize; i ++){
             if(d2[i] == R_NegInf){d2[i] = -almost_inf;}
@@ -744,7 +715,11 @@ SEXP ic_sp_ch(SEXP Rlind, SEXP Rrind, SEXP Rcovars, SEXP fitType,
     double llk_new = R_NegInf;
     
     Rcpp::IntegerVector derivOptions(R_derivMethod);
+    int restart = 0;
     for (int derivMethod : derivOptions) {
+        if (restart > 0) {
+            Rprintf("Error found (see warnings). Restarting optimization with derivative method %d\n", derivMethod);
+        }
         try {
             setup_icm(Rlind, Rrind, Rcovars, R_w, R_strata, R_initialRegVals, optObj);
     
@@ -756,12 +731,20 @@ SEXP ic_sp_ch(SEXP Rlind, SEXP Rrind, SEXP Rcovars, SEXP fitType,
             int baselineUpdates = INTEGER(R_baselineUpdates)[0];
     
             llk_new = optObj->run(maxIter, tol, useGD, baselineUpdates);
+            if (restart > 0) {
+                Rprintf("Optimization successfully completed with derivative method %d.", derivMethod);
+            }
             break;
         } catch (...) {
-           Rprintf("Error encountered with derivative method %d. \n", derivMethod);
-        } 
+           warning("Error encountered with derivative method %d. \n", derivMethod);
+           restart++;
+        }
     }
-    std::vector<std::vector<double>> p_hat; // IG changed to vector of vectors to handle multiple strata
+    if (llk_new == R_NegInf) {
+        throw Rcpp::exception("Final log-likelihood is -Inf.");
+    }
+    
+    std::vector<std::vector<double>> p_hat; 
     p_hat.resize(optObj->n_strata);
     optObj->recenterBCH();
     

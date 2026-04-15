@@ -75,44 +75,12 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// s_regTrans
-SEXP s_regTrans(SEXP times, SEXP etas, SEXP bli, SEXP regType, SEXP baseType);
-RcppExport SEXP _icsp2_s_regTrans(SEXP timesSEXP, SEXP etasSEXP, SEXP bliSEXP, SEXP regTypeSEXP, SEXP baseTypeSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type times(timesSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type etas(etasSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type bli(bliSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type regType(regTypeSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type baseType(baseTypeSEXP);
-    rcpp_result_gen = Rcpp::wrap(s_regTrans(times, etas, bli, regType, baseType));
-    return rcpp_result_gen;
-END_RCPP
-}
-// q_regTrans
-SEXP q_regTrans(SEXP p, SEXP etas, SEXP bli, SEXP regType, SEXP baseType);
-RcppExport SEXP _icsp2_q_regTrans(SEXP pSEXP, SEXP etasSEXP, SEXP bliSEXP, SEXP regTypeSEXP, SEXP baseTypeSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type p(pSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type etas(etasSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type bli(bliSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type regType(regTypeSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type baseType(baseTypeSEXP);
-    rcpp_result_gen = Rcpp::wrap(q_regTrans(p, etas, bli, regType, baseType));
-    return rcpp_result_gen;
-END_RCPP
-}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_icsp2_pava", (DL_FUNC) &_icsp2_pava, 3},
     {"_icsp2_fastNumericInsert_cpp", (DL_FUNC) &_icsp2_fastNumericInsert_cpp, 3},
     {"_icsp2_ic_sp_ch", (DL_FUNC) &_icsp2_ic_sp_ch, 13},
     {"_icsp2_findMI", (DL_FUNC) &_icsp2_findMI, 5},
-    {"_icsp2_s_regTrans", (DL_FUNC) &_icsp2_s_regTrans, 5},
-    {"_icsp2_q_regTrans", (DL_FUNC) &_icsp2_q_regTrans, 5},
     {NULL, NULL, 0}
 };
 

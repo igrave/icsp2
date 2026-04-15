@@ -17,11 +17,3 @@ findMI <- function(R_AllVals, isL, isR, lVals, rVals) {
     .Call(`_icsp2_findMI`, R_AllVals, isL, isR, lVals, rVals)
 }
 
-s_regTrans <- function(times, etas, bli, regType, baseType) {
-    .Call(`_icsp2_s_regTrans`, times, etas, bli, regType, baseType)
-}
-
-q_regTrans <- function(p, etas, bli, regType, baseType) {
-    .Call(`_icsp2_q_regTrans`, p, etas, bli, regType, baseType)
-}
-

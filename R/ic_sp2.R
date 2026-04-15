@@ -12,13 +12,13 @@
 #' Defaults not intended to be changed for use in standard analyses.
 #'
 #' @details
-#' The constrained gradient step, actived by \code{useGA = TRUE},
+#' The constrained gradient step, controlled by \code{useGA = TRUE},
 #' is a step that was added to improve the convergence in a special case.
-#' The option to turn it off is only in place to help demonstrate it's utility.
+#' The option to turn it off is only in place to help demonstrate its utility.
 #'
 #'  \code{regStart} also for seeding of initial value of regression parameters.
 #'  Intended for use in ``warm start" for bootstrap samples
-#'  and providing fixed regression parameters when calculating fit in qq-plots.
+#'  and providing fixed regression parameters.
 #'
 #' @export
 ic_sp_control <- function(
@@ -47,10 +47,12 @@ ic_sp_control <- function(
 #' @param weights Optional vector of weights for each observation, or the name of a variable in `data` containing the weights.
 #' @param subset Optional expression indicating a subset of the rows of `data` to be used in the fit.
 #' @param na.action Optional function to handle missing data. Default is `na.omit`.
-#' @param model Type of model to fit. Choices are "ph" for proportional hazards and "po" for proportional odds. Default is "ph".
+#' @param model Type of model to fit. Choices are `"ph"` for proportional hazards and `"po"` for proportional odds. Default is `"ph"`.
 #'   This is normally determined by the function aliases `ic_sp_ph` and `ic_sp_po`.
 #' @param B A vector of length 2 giving the lower and upper bounds for the observation times. Default is c(0, 1).
 #' @param control A list of control settings, with defaults created by [ic_sp_control()].
+#' @param ... Additional arguments passed to control.
+#'
 #' @return A list containing the fitted model information, including coefficients, variance-covariance matrix, and other details.
 #' @export
 ic_sp2 <- function(
@@ -112,10 +114,7 @@ ic_sp2 <- function(
 
   attr(terms, "intercept") <- 1
   x <- model.matrix(terms, data = mf)[, -1, drop = FALSE]
-
-  call_info = readingCall(call) # TODO do we need this?
-
-  x_names = colnames(x)
+  x_names <- colnames(x)
   check_matrix(x)
 
   model_type <- if (call[[1]] == "ic_sp_ph") {
@@ -129,12 +128,18 @@ ic_sp2 <- function(
   weights <- check_weights(mf)
 
   if (!is.null(control$regStart)) {
+    if (length(control$regStart) != ncol(x)) {
+      stop(
+        "regStart must have length equal to the number of regression parameters.",
+        " Expected length ",
+        ncol(x),
+        " but got length ",
+        length(control$regStart)
+      )
+    }
     regStart <- control$regStart
   } else {
-    regStart <- rep(0, length(x_names))
-  }
-  if (length(regStart) != length(x_names)) {
-    stop("length of provided regression parameters wrong length")
+    regStart <- rep(0, ncol(x))
   }
 
   other_info <- list(
@@ -143,7 +148,7 @@ ic_sp2 <- function(
     baselineUpdates = control$baseUpdates,
     useFullHess = TRUE,
     updateCovars = control$updateCovars,
-    recenterCovars = (length(x_names) > 0),
+    recenterCovars = (ncol(x) > 0),
     regStart = regStart,
     derivMethod = control$derivMethod
   )
@@ -213,7 +218,7 @@ ic_sp_po <- ic_sp2
 #' @param model_type Model type: "ic_ph" or "ic_po"
 #' @param other_info List of other fitting options
 #' @return Fitted model object
-#' @export
+#' @noRd
 #' @details
 #' For advanced use only. This function is called internally by `ic_sp_ph`
 #'  and `ic_sp_po`.
@@ -226,13 +231,6 @@ ic_sp_po <- ic_sp2
   model_type,
   other_info
 ) {
-  # obsMat,
-  # covars,
-  # callText = 'ic_ph',
-  # weights,
-  # strata,
-  # other_info
-
   if (any(y[, 1] > y[, 2])) {
     stop(
       "left side of response interval greater than right side. This is impossible."
@@ -355,34 +353,19 @@ vcov.ic_sp2 <- function(object, typical = 1, large = 2, ...) {
         sqrt(n)
     }
   }
-
-  call_args <- list(
-    other_info = object$other_info,
-    x = object$.dataEnv$x,
-    y = object$.dataEnv$y,
-    model_type = paste0("ic_", object$model),
-    weights = object$.dataEnv$weights,
-    strata = object$.dataEnv$strata
-  )
-  call_args$other_info$updateCovars <- FALSE
-
   for (i in seq_len(k)) {
-    # fit the model with beta_i + h
     beta <- object$coefficients
     beta[i] <- beta[i] + h[i, i]
-    call_args$other_info$regStart <- beta
-    new_fit <- do.call(.fit_ic_sp, call_args)
+    new_fit <- profile_fit(object, beta)
     llk_beta_k[i] <- new_fit$llk
   }
 
   for (i in seq_len(k)) {
     for (j in seq(from = i, to = k)) {
-      # fit the model with beta_i + h_i and beta_j + h_j
       beta <- object$coefficients
       beta[i] <- beta[i] + h[i, j]
       beta[j] <- beta[j] + h[i, j]
-      call_args$other_info$regStart <- beta
-      new_fit <- do.call(.fit_ic_sp, call_args)
+      new_fit <- profile_fit(object, beta)
       llk_beta_j_k[i, j] <- new_fit$llk
       if (i != j) {
         llk_beta_j_k[j, i] <- new_fit$llk
@@ -410,6 +393,12 @@ vcov.ic_sp2 <- function(object, typical = 1, large = 2, ...) {
   result
 }
 
+
+#' Refit the model with fixed regression parameters
+#' @param object Fitted model object from \code{ic_sp}
+#' @param beta Vector of regression parameters to fix in the refit. Default is the original fitted regression parameters.
+#' @return Raw fitted model object with fixed regression parameters.
+#' @export
 profile_fit <- function(object, beta = object$coefficients) {
   call_args <- list(
     other_info = object$other_info,
@@ -434,7 +423,6 @@ print.ic_sp2 <- function(x, ...) {
   print(x$call)
   cat("\n")
   cat("Coefficients:\n")
-  # printCoefmat(x$coefficients)
   print(x$coefficients)
   cat("\n")
   cat(paste0("Log-likelihood: ", round(x$llk, 4), "\n"))

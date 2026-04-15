@@ -57,7 +57,8 @@ simEventTime <- function(
 #' @param prob_cen probability event being censored. If event is uncensored, l == u
 #'
 #' @description
-#' Simulates interval censored data from a regression model with a weibull baseline distribution. Used for demonstration
+#' Simulates interval censored data from a regression model with a Weibull
+#'  baseline distribution. Used for demonstration
 #' @details
 #' Exact event times are simulated according to regression model: covariate \code{x1}
 #' is distributed \code{rnorm(n)} and covariate \code{x2} is distributed
@@ -73,7 +74,7 @@ simEventTime <- function(
 #' sim_data <- simIC_weib(n = 500, b1 = .3, b2 = -.3, model = 'ph',
 #'                       shape = 2, scale = 2, inspections = 6,
 #'                       inspectLength = 1)
-#' #simulates data from a cox-ph with beta weibull distribution.
+#' #simulates data from a cox-ph with beta Weibull distribution.
 #'
 #' ic_sp_ph(Surv(l, u, type = 'interval2') ~ x1 + x2, data = sim_data)
 #' ic_sp_po(Surv(l, u, type = 'interval2') ~ x1 + x2, data = sim_data)
@@ -141,60 +142,4 @@ simIC_weib <- function(
     l[l == Inf] <- maxFiniteTime
   }
   return(data.frame(l = l, u = u, x1 = x1, x2 = x2))
-}
-
-
-#' Simulate Doubly Censored Data
-#'
-#' @description Simulates doubly censored data from a survival regression model
-#' with a Weibull baseline distribution.
-#'
-#' @param n       Number of observations
-#' @param b1          Regression coefficient 1
-#' @param b2          Regression coefficient 2
-#' @param model       Regression model to use. Choices are \code{"ph"}, \code{"po"} or \code{"aft"}
-#' @param shape       Baseline shape parameter
-#' @param scale       Baseline scale parameter
-#' @param lowerLimit  Lower censoring threshold
-#' @param upperLimit  Upper censoring threshold
-#' @details Exact event times are simulated according to the given survival regression model.
-#' Two covariates are used; \code{x1 = rnorm(n), x2 = 1 - 2 * rbinom(n, 1, .5)}. After
-#' event times are simulated, all values less than \code{lowerLimit} are left censored
-#' and all values less than \code{upperLimit} are right censored.
-#' @examples
-#' simData <- simDC_weib()
-#' fit <- ic_sp_ph(Surv(l, u, type = "interval2") ~ x1 + x2, data = simData)
-#' @export
-simDC_weib <- function(
-  n = 100,
-  b1 = 0.5,
-  b2 = -0.5,
-  model = "ph",
-  shape = 2,
-  scale = 2,
-  lowerLimit = 0.75,
-  upperLimit = 2
-) {
-  x1 <- runif(n, -1, 1)
-  x2 <- 1 - 2 * rbinom(n, 1, 0.5)
-  linPred <- x1 * b1 + x2 * b2
-  trueTimes <- simEventTime(
-    linPred,
-    model = model,
-    dist = qweibull,
-    paramList = list(shape = shape, scale = scale)
-  )
-  l <- numeric()
-  u <- numeric()
-  isLeftCen <- trueTimes < lowerLimit
-  isRightCen <- trueTimes > upperLimit
-  isUnCen <- !(isLeftCen | isRightCen)
-  l[isLeftCen] <- 0
-  u[isLeftCen] <- lowerLimit
-  l[isRightCen] <- upperLimit
-  u[isRightCen] <- Inf
-  l[isUnCen] <- trueTimes[isUnCen]
-  u[isUnCen] <- trueTimes[isUnCen]
-  ans <- data.frame(l = l, u = u, x1 = x1, x2 = x2)
-  return(ans)
 }
