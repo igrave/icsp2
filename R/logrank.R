@@ -75,9 +75,9 @@ compute_statistic <- function(
       if (any(is.infinite(imp))) {
         browser()
       }
-      svdf <- survdiff(Surv(imp, rep(1, length(imp))) ~ group_var_s)
-      U[, h] <- svdf$obs - svdf$exp
-      V[,, h] <- svdf$var
+      svdf <- cpp_logrank(imp, rep(1, length(imp)), group_var_s)
+      U[, h] <- svdf$observed - svdf$expected
+      V[,, h] <- svdf$variance
     }
 
     U_s[[s]] <- rowMeans(U)
