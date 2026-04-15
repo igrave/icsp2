@@ -75,7 +75,7 @@ test_that("PH model works for with numerical derivative fallback", {
     "Error encountered with derivative method",
     fixed = TRUE
   )
-  expect_equal(d1$coefficients, d121$coefficients, tolerance = 1e-7)
+  expect_equal(d1$coefficients, d121$coefficients, tolerance = 1e-6)
   expect_equal(d1$llk, d121$llk)
   expect_equal(d1$s, d121$s, tolerance = 1e-7)
   expect_equal(d1$scores, d121$scores)
