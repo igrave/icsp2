@@ -9,6 +9,10 @@ fastNumericInsert_cpp <- function(newVals, target, indices) {
     .Call(`_icsp2_fastNumericInsert_cpp`, newVals, target, indices)
 }
 
+hly_sample <- function(S_ij, left_times, group_var_s, H) {
+    .Call(`_icsp2_hly_sample`, S_ij, left_times, group_var_s, H)
+}
+
 fast_logrank <- function(time, event, group) {
     .Call(`_icsp2_fast_logrank`, time, event, group)
 }

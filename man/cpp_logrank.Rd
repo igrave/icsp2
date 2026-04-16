@@ -9,10 +9,10 @@ cpp_logrank(time, event, group)
 \arguments{
 \item{time}{Numeric vector of survival/censoring times.}
 
-\item{event}{Integer vector of event indicators (1 = event, 0 = censored).}
+\item{event}{Logical vector of event indicators (TRUE = event, FALSE = censored).}
 
 \item{group}{Integer vector of group labels, coded as consecutive integers
-starting from 1 (i.e. \verb{1, 2, ...}).}
+(i.e. \verb{1, 2, ...}). This is not checked.}
 }
 \value{
 An object of class \code{"cpp_logrank"}, a list with components:
@@ -31,7 +31,7 @@ efficiently for variance calculation.
 \examples{
 set.seed(1992)
 time  <- rexp(100)
-event <- sample(0:1, 100, replace = TRUE)
+event <- sample(c(TRUE, FALSE), 100, replace = TRUE)
 group <- sample(1:2, 100, replace = TRUE)
 cpp_logrank(time, event, group)
 
