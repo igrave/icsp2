@@ -50,7 +50,10 @@
 <div class="page-header"><h1 id="icsp2">icsp2<a class="anchor" aria-label="anchor" href="#icsp2"></a>
 </h1></div>
 <p>Semiparametric interval censored survival regression with stratification</p>
-<p>This is a cut down package to calculate “Cox” type models for interval censored data and perform a log-rank type test. It is especially designed to mirror the typical clinical trial survival analysis methods that would be done for right censored data. Therefore it could be used as a sensitivity analysis in the presence of interval censoring.</p>
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Install 'icsp2' from R-universe:</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">'icsp2'</span>, repos <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">'https://igrave.r-universe.dev'</span>, <span class="st">'https://cloud.r-project.org'</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<p>This is a cut down package to calculate Cox models for interval censored data and perform a log-rank type test. It is especially designed to mirror the typical clinical trial survival analysis methods that would be done for right censored data. Therefore it could be used as a sensitivity analysis in the presence of interval censoring.</p>
 <p>This package borrows heavily from <a href="https://cran.r-project.org/package=icenReg" class="external-link"><code>icenReg</code></a>, specifically the <code>ic_sp()</code> implementation. The main change is the addition of support for stratified baseline hazards and analytical derivatives. We also implement a profile likelihood variance estimation procedure for the regression coefficients.</p>
 <p>The logrank test is our own and aims to replace a <a href="https://documentation.sas.com/doc/en/statug/latest/statug_iclifetest_overview.htm" class="external-link">PROC ICLIFETEST</a> test using Sun type weights and imputed variance.</p>
 </div>
