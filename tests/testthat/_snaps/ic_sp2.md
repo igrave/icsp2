@@ -1,4 +1,4 @@
-# print works for ic_sp2 / PH model works for sim data
+# print works for ic_sp2
 
     Code
       print(result)
