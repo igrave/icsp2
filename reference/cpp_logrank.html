@@ -57,12 +57,12 @@ efficiently for variance calculation.</p>
 
 
 <dt id="arg-event">event<a class="anchor" aria-label="anchor" href="#arg-event"></a></dt>
-<dd><p>Integer vector of event indicators (1 = event, 0 = censored).</p></dd>
+<dd><p>Logical vector of event indicators (TRUE = event, FALSE = censored).</p></dd>
 
 
 <dt id="arg-group">group<a class="anchor" aria-label="anchor" href="#arg-group"></a></dt>
 <dd><p>Integer vector of group labels, coded as consecutive integers
-starting from 1 (i.e. <code>1, 2, ...</code>).</p></dd>
+(i.e. <code>1, 2, ...</code>). This is not checked.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -86,7 +86,7 @@ starting from 1 (i.e. <code>1, 2, ...</code>).</p></dd>
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1992</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">time</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Exponential.html" class="external-link">rexp</a></span><span class="op">(</span><span class="fl">100</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">event</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="fl">0</span><span class="op">:</span><span class="fl">1</span>, <span class="fl">100</span>, replace <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">event</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="cn">TRUE</span>, <span class="cn">FALSE</span><span class="op">)</span>, <span class="fl">100</span>, replace <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">group</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="fl">2</span>, <span class="fl">100</span>, replace <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu">cpp_logrank</span><span class="op">(</span><span class="va">time</span>, <span class="va">event</span>, <span class="va">group</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
@@ -96,13 +96,13 @@ starting from 1 (i.e. <code>1, 2, ...</code>).</p></dd>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 47 53 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>          N Observed Expected     O-E</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Group 1 47       20  23.5486 -3.5486</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Group 2 53       28  24.4514  3.5486</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Group 1 47       27  25.6869  1.3131</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Group 2 53       25  26.3131 -1.3131</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Variance-covariance matrix:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>          1        2</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1  11.8621 -11.8621</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2 -11.8621  11.8621</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1  12.5806 -12.5806</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2 -12.5806  12.5806</span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

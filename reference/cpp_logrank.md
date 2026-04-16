@@ -20,12 +20,12 @@ cpp_logrank(time, event, group)
 
 - event:
 
-  Integer vector of event indicators (1 = event, 0 = censored).
+  Logical vector of event indicators (TRUE = event, FALSE = censored).
 
 - group:
 
-  Integer vector of group labels, coded as consecutive integers starting
-  from 1 (i.e. `1, 2, ...`).
+  Integer vector of group labels, coded as consecutive integers (i.e.
+  `1, 2, ...`). This is not checked.
 
 ## Value
 
@@ -52,7 +52,7 @@ An object of class `"cpp_logrank"`, a list with components:
 ``` r
 set.seed(1992)
 time  <- rexp(100)
-event <- sample(0:1, 100, replace = TRUE)
+event <- sample(c(TRUE, FALSE), 100, replace = TRUE)
 group <- sample(1:2, 100, replace = TRUE)
 cpp_logrank(time, event, group)
 #> 
@@ -62,11 +62,11 @@ cpp_logrank(time, event, group)
 #> 47 53 
 #> 
 #>          N Observed Expected     O-E
-#> Group 1 47       20  23.5486 -3.5486
-#> Group 2 53       28  24.4514  3.5486
+#> Group 1 47       27  25.6869  1.3131
+#> Group 2 53       25  26.3131 -1.3131
 #> 
 #> Variance-covariance matrix:
 #>          1        2
-#> 1  11.8621 -11.8621
-#> 2 -11.8621  11.8621
+#> 1  12.5806 -12.5806
+#> 2 -12.5806  12.5806
 ```
