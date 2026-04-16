@@ -1,7 +1,13 @@
 # icsp2
 Semiparametric interval censored survival regression with stratification
 
-This is a cut down package to calculate "Cox" type models for interval
+```r
+# Install 'icsp2' from R-universe:
+install.packages('icsp2', repos = c('https://igrave.r-universe.dev', 'https://cloud.r-project.org'))
+```
+
+
+This is a cut down package to calculate Cox models for interval
 censored data and perform a log-rank type test. It is especially designed
 to mirror the typical clinical trial survival analysis methods that would
 be done for right censored data. Therefore it could be used as a 
