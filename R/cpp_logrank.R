@@ -5,9 +5,9 @@
 #' efficiently for variance calculation.
 #'
 #' @param time Numeric vector of survival/censoring times.
-#' @param event Integer vector of event indicators (1 = event, 0 = censored).
+#' @param event Logical vector of event indicators (TRUE = event, FALSE = censored).
 #' @param group Integer vector of group labels, coded as consecutive integers
-#'   starting from 1 (i.e. `1, 2, ...`).
+#'   (i.e. `1, 2, ...`). This is not checked.
 #'
 #' @return An object of class `"cpp_logrank"`, a list with components:
 #' \describe{
@@ -20,7 +20,7 @@
 #' @examples
 #' set.seed(1992)
 #' time  <- rexp(100)
-#' event <- sample(0:1, 100, replace = TRUE)
+#' event <- sample(c(TRUE, FALSE), 100, replace = TRUE)
 #' group <- sample(1:2, 100, replace = TRUE)
 #' cpp_logrank(time, event, group)
 #'
@@ -34,16 +34,12 @@ cpp_logrank <- function(time, event, group) {
     stop("`time` must be numeric.")
   }
 
-  event <- as.integer(event)
-  if (!all(event %in% c(0L, 1L))) {
-    stop("`event` must contain only 0 and 1.")
+  if (anyNA(event)) {
+    stop("`event` must contain only TRUE/FALSE.")
   }
+  event <- as.integer(event)
 
   group <- as.integer(group)
-  K <- max(group)
-  if (!identical(sort(unique(group)), seq_len(K))) {
-    stop("`group` must be consecutive integers starting from 1.")
-  }
 
   result <- fast_logrank(time, event, group)
   class(result) <- "cpp_logrank"

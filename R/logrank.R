@@ -59,31 +59,28 @@ compute_statistic <- function(
 
     H <- n_samples
     U <- matrix(0, nrow = n_groups, ncol = H)
-    V <- array(0, dim = c(n_groups, n_groups, H))
+    V <- array(0, dim = c(n_groups, n_groups))
     k_subset <- seq.int(k_groups)
 
-    S_ij <- matrix(0, nrow = nrow(P_ij), ncol = ncol(P_ij))
+    S_ij <- matrix(0, nrow = n, ncol = m)
     P_row_sums <- rowSums(P_ij)
-    for (i in seq_len(nrow(P_ij))) {
+    for (i in seq_len(n)) {
       S_ij[i, ] <- cumsum(P_ij[i, ]) / P_row_sums[i]
     }
-
-    for (h in seq.int(H)) {
-      q <- runif(nrow(S_ij))
+    left_times <- mi_list[[s]][[3]] # mi_list[[s]]$mi_l
+    for (h in seq_len(H)) {
+      q <- runif(n)
       j <- rowSums(S_ij <= q) + 1L
-      imp <- mi_list[[s]]$mi_l[j] # Does _l or _r make a difference?
-      if (any(is.infinite(imp))) {
-        browser()
-      }
-      svdf <- cpp_logrank(imp, rep(1, length(imp)), group_var_s)
-      U[, h] <- svdf$observed - svdf$expected
-      V[,, h] <- svdf$variance
+      imp <- left_times[j]
+      lr_res <- cpp_logrank(imp, rep(TRUE, n), group_var_s)
+      # lr_res = list(obs, exp, var, n_by_group)
+      U[, h] <- lr_res[[1]] - lr_res[[2]]
+      V <- V + lr_res[[3]] / H
     }
 
     U_s[[s]] <- rowMeans(U)
 
-    V_s[[s]] <- rowMeans(V, dims = 2) -
-      ((U - U_s[[s]]) %*% t(U - U_s[[s]])) / (H - 1)
+    V_s[[s]] <- V - ((U - U_s[[s]]) %*% t(U - U_s[[s]])) / (H - 1)
   }
   if (type == "sas") {
     U_s <- T_s
