@@ -37,6 +37,20 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// hly_sample
+List hly_sample(NumericMatrix S_ij, NumericVector left_times, IntegerVector group_var_s, int H);
+RcppExport SEXP _icsp2_hly_sample(SEXP S_ijSEXP, SEXP left_timesSEXP, SEXP group_var_sSEXP, SEXP HSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type S_ij(S_ijSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type left_times(left_timesSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type group_var_s(group_var_sSEXP);
+    Rcpp::traits::input_parameter< int >::type H(HSEXP);
+    rcpp_result_gen = Rcpp::wrap(hly_sample(S_ij, left_times, group_var_s, H));
+    return rcpp_result_gen;
+END_RCPP
+}
 // fast_logrank
 List fast_logrank(NumericVector time, IntegerVector event, IntegerVector group);
 RcppExport SEXP _icsp2_fast_logrank(SEXP timeSEXP, SEXP eventSEXP, SEXP groupSEXP) {
@@ -92,6 +106,7 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_icsp2_pava", (DL_FUNC) &_icsp2_pava, 3},
     {"_icsp2_fastNumericInsert_cpp", (DL_FUNC) &_icsp2_fastNumericInsert_cpp, 3},
+    {"_icsp2_hly_sample", (DL_FUNC) &_icsp2_hly_sample, 4},
     {"_icsp2_fast_logrank", (DL_FUNC) &_icsp2_fast_logrank, 3},
     {"_icsp2_ic_sp_ch", (DL_FUNC) &_icsp2_ic_sp_ch, 13},
     {"_icsp2_findMI", (DL_FUNC) &_icsp2_findMI, 5},

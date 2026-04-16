@@ -62,18 +62,20 @@ test_that("PH model works for with numerical derivative fallback", {
     control = ic_sp_control(derivMethod = 1)
   )
 
-  expect_warning(
+  expect_output(
     expect_warning(
-      d121 <- ic_sp_ph(
-        Surv(l, u, type = 'interval2') ~ x1 + x2,
-        data = sim_data,
-        control = ic_sp_control(derivMethod = c(12, 1))
+      expect_warning(
+        d121 <- ic_sp_ph(
+          Surv(l, u, type = 'interval2') ~ x1 + x2,
+          data = sim_data,
+          control = ic_sp_control(derivMethod = c(12, 1))
+        ),
+        "observation log probability is <= 0",
+        fixed = TRUE
       ),
-      "observation log probability is <= 0",
+      "Error encountered with derivative method",
       fixed = TRUE
-    ),
-    "Error encountered with derivative method",
-    fixed = TRUE
+    )
   )
   expect_equal(d1$coefficients, d121$coefficients, tolerance = 1e-6)
   expect_equal(d1$llk, d121$llk)
@@ -201,20 +203,18 @@ test_that("PO model works for sim data with variance estimation", {
 
 
 test_that("print works for ic_sp2", {
-  test_that("PH model works for sim data", {
-    set.seed(1951)
-    sim_data <- simIC_weib(n = 100, inspections = 3, inspectLength = 1)
+  set.seed(1951)
+  sim_data <- simIC_weib(n = 100, inspections = 3, inspectLength = 1)
 
-    result <- ic_sp_ph(
-      Surv(l, u, type = 'interval2') ~ x1 + x2,
-      data = sim_data,
-      control = ic_sp_control(derivMethod = 1)
-    )
+  result <- ic_sp_ph(
+    Surv(l, u, type = 'interval2') ~ x1 + x2,
+    data = sim_data,
+    control = ic_sp_control(derivMethod = 1)
+  )
 
-    expect_snapshot(
-      print(result)
-    )
-  })
+  expect_snapshot(
+    print(result)
+  )
 })
 
 test_that("print works for stratified fit", {

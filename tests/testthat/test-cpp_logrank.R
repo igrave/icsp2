@@ -77,18 +77,14 @@ test_that("cpp_logrank returns correct class and structure", {
 })
 
 test_that("cpp_logrank errors on mismatched lengths", {
-  expect_error(cpp_logrank(1:5, 0:1, 1:5), "same length")
+  expect_error(cpp_logrank(1:5, c(TRUE, FALSE), 1:5), "same length")
   expect_error(cpp_logrank(1:5, rep(1, 5), 1:3), "same length")
 })
 
 test_that("cpp_logrank errors on invalid event values", {
-  expect_error(cpp_logrank(1:5, c(0, 1, 2, 0, 1), rep(1L, 5)), "0 and 1")
-})
-
-test_that("cpp_logrank errors on non-consecutive groups", {
   expect_error(
-    cpp_logrank(1:5, rep(1, 5), c(1L, 1L, 3L, 3L, 3L)),
-    "consecutive integers"
+    cpp_logrank(1:5, c(TRUE, FALSE, NA, TRUE, TRUE), rep(1L, 5)),
+    "TRUE/FALSE"
   )
 })
 

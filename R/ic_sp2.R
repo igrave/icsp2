@@ -175,7 +175,6 @@ ic_sp2 <- function(
   dataEnv[["strata"]] <- strata
   dataEnv[["weights"]] <- weights
 
-  bsMat <- NULL
   covar <- NULL
 
   names(result$coefficients) <- x_names
@@ -288,7 +287,7 @@ ic_sp_po <- ic_sp2
     'hessian',
     'd3'
   )
-  result <- list() #new(model_type)
+  result <- list()
   result$p_hat <- lapply(c_ans$p_hat, function(p) p / sum(p))
   result$s <- lapply(result$p_hat, function(p) 1 - c(0, cumsum(p)))
   result$coefficients <- c_ans$coefficients
@@ -297,8 +296,8 @@ ic_sp_po <- ic_sp2
   result$score <- c_ans$score
   result$hessian <- c_ans$hessian
   result$d3 <- c_ans$d3
-  result[['intervals']] <- lapply(mi_info, function(mi) {
-    rbind(mi[['mi_l']], mi[['mi_r']])
+  result[["intervals"]] <- lapply(mi_info, function(mi) {
+    rbind(mi[["mi_l"]], mi[["mi_r"]])
   })
 
   return(result)
@@ -321,9 +320,8 @@ ic_sp_po <- ic_sp2
 #' @references Boruvka, A., and Cook, R. J. (2015), A Cox-Aalen Model for Interval-censored Data. Scand J Statist, 42, 414–426. doi: 10.1111/sjos.12113.
 #' @exportS3Method vcov ic_sp2
 vcov.ic_sp2 <- function(object, typical = 1, large = 2, ...) {
-  fit <- object
   if (!inherits(object, "ic_sp_ph") && !inherits(object, "ic_sp_po")) {
-    stop("Fit must be an object of class ic_sp_ph or ic_sp_po.")
+    stop("object must have class ic_sp_ph or ic_sp_po.")
   }
   stopifnot(is.numeric(typical), length(typical) == 1, typical > 0)
   stopifnot(is.numeric(large), length(large) == 1, large > 0)
