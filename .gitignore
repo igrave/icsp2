@@ -10,3 +10,4 @@ local/
 .Rprofile
 *.Rproj
 docs
+inst/doc

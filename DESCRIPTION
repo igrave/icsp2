@@ -25,7 +25,10 @@ Imports:
 Suggests: 
     testthat (>= 3.0.0),
     icenReg,
-    vdiffr
+    vdiffr,
+    knitr,
+    rmarkdown
 Config/testthat/edition: 3
 LazyData: TRUE
 language: en
+VignetteBuilder: knitr

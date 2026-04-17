@@ -85,7 +85,7 @@ public:
     virtual std::vector<double> dllk_dch_i(double ch_l, double ch_r, double eta, double pob, bool left) = 0;
     
     void calcAnalyticRegDervs(Eigen::MatrixXd &hess, Eigen::VectorXd &d1);
-    void calcAnalyticRegDervs(Eigen::MatrixXd &hess, Eigen::VectorXd &d1, Eigen::VectorXd &d3);
+    void calcFinalRegContr(Eigen::MatrixXd &hess, Eigen::VectorXd &d1, Eigen::VectorXd &d3);
     void rawDervs2ActDervs();
     
     std::vector<Eigen::VectorXd>     baseCH;     //Vector of baseline log cumulative hazards.
@@ -103,9 +103,9 @@ public:
     std::vector<Eigen::MatrixXd>     covars;     //covariates        //initialized
     Eigen::VectorXd     reg_d1;     //first derivatives of regression parameters        //initialized
     Eigen::MatrixXd     reg_d2;     //Hessian for derivatives       //initialized
-    Eigen::VectorXd     reg_d3;     //first derivatives of regression parameters
+    Eigen::VectorXd     reg_d3;     //third derivatives of regression parameters
 //    Eigen::VectorXd     reg_d2;     //second derivatives: ignoring off diagonals!
-    
+
     std::vector<std::vector<double>> w;
     
     int n_strata;             //number of strata

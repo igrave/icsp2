@@ -1,0 +1,41 @@
+---
+title: "comparison"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{comparison}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(icsp2)
+```
+
+```{r}
+library(haven)
+idu <- read_dta("./local/idu.dta")
+```
+
+```{r}
+idu_1 <- ic_sp_ph(
+  Surv(ltime, rtime, type = "interval2") ~ age_mean +
+    male +
+    needle +
+    inject +
+    jail,
+  data = idu
+)
+idu_1_res <- summary(idu_1)
+within(as.data.frame(idu_1_res$coef_matrix), {
+  HR = exp(Estimate)
+  HR_u = exp(Estimate + 1.96 * Std.Error)
+  HR_l = exp(Estimate - 1.96 * Std.Error)
+})
+```
