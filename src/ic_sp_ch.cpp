@@ -634,11 +634,16 @@ void icm_Abst::calcFinalRegContr(Eigen::MatrixXd &hess, Eigen::VectorXd &d1, Eig
             this_totCont = totCont[i];
             this_totCont2 = totCont2[i];
             this_totCont3 = totCont3[i];
+            // Compute ||z_i||^2 for cross-term d3 accumulation
+            double z_sq_sum = 0.0;
+            for(int b = 0; b < k; b++){
+                z_sq_sum += covars[s](i,b) * covars[s](i,b);
+            }
             for(int a = 0; a < k; a++){
                 this_covar = covars[s](i,a);
                 this_w_covar = this_w * this_covar;
                 d1[a] += this_w_covar * this_totCont;
-                d3[a] += this_w_covar * this_covar * this_covar * this_totCont3;
+                d3[a] += this_w_covar * z_sq_sum * this_totCont3;
                 if(useFullHess){
                     for(int b = 0; b < a; b++){
                         hess(a,b) += this_w_covar * covars[s](i,b) * this_totCont2;
