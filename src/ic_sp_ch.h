@@ -20,9 +20,20 @@
 
 #include <stdio.h>
 #include <vector>
+#include <cmath>
 #include <RcppEigen.h>
 using namespace Rcpp;
 using namespace Eigen;
+
+// Compute log(1 - exp(-x)) for x > 0, numerically stable.
+// Uses the formulation from Mächler (2012).
+inline double log1mexp(double x) {
+    if (x <= M_LN2) {
+        return std::log(-std::expm1(-x));
+    } else {
+        return std::log1p(-std::exp(-x));
+    }
+}
 
 class node_info{
 public:
@@ -35,12 +46,13 @@ class obInf{
 public:
     int l,r;
     double pob;
+    double log_pob;
 };
 
 
 class icm_Abst{
 public:
-    void update_p_ob(int s, int i);    //done, not checked
+    virtual void update_p_ob(int s, int i);
     
     
     double sum_llk_all(); //done, not checked
@@ -82,7 +94,7 @@ public:
 
     // contributions of single observations to the likelihood derivatives wrt baseP and baseCH
     virtual double dllk_dp_i(double s_l, double s_r, double eta, double pob,  bool left, bool right) = 0;
-    virtual std::vector<double> dllk_dch_i(double ch_l, double ch_r, double eta, double pob, bool left) = 0;
+    virtual std::vector<double> dllk_dch_i(double ch_l, double ch_r, double eta, double log_pob, bool left) = 0;
     
     void calcAnalyticRegDervs(Eigen::MatrixXd &hess, Eigen::VectorXd &d1);
     void calcFinalRegContr(Eigen::MatrixXd &hess, Eigen::VectorXd &d1, Eigen::VectorXd &d3);
@@ -152,7 +164,7 @@ public:
     void numeric_dobs_dp(int s, bool forGA);
     //void numeric_dobs2_d2p();
     
-    double cal_log_obs(double s1, double s2, double eta);
+    virtual double cal_log_obs(double s1, double s2, double eta);
     
     
     std::vector<std::vector<bool>> usedVec;
@@ -293,24 +305,37 @@ public:
         return(ans);
     }
 
-    std::vector<double> dllk_dch_i(double ch_l, double ch_r, double eta, double pob, bool left){
+    std::vector<double> dllk_dch_i(double ch_l, double ch_r, double eta, double log_pob, bool left){
         std::vector<double> ans(2);
         double d1, d2;
-        double ech;
-
+        // Derivative of S w.r.t. H: dS/dH = -exp(H+eta) * exp(-exp(H+eta))
+        //   = -exp(a - exp(a)) where a = H + eta
+        // d1 = dS/dH / P = -exp(a - exp(a) - log_pob)
         if (left) {
-            ech = exp(ch_l + eta);
+            double a = ch_l + eta;
             if (ch_r == R_PosInf) {
-               d1 = -ech;
+               d1 = -exp(a);
                d2 = d1;
             } else {
-                d1 = -(ech * exp(-ech)) / pob;
-                d2 = d1 * (1 - ech) - d1 * d1;
+                double log_numer = a - exp(a);  // log(|dS_l/dH_l|)
+                double log_abs_d1 = log_numer - log_pob;
+                if (log_abs_d1 < -36.0 || log_numer < -700.0) {
+                    d1 = 0.0; d2 = 0.0;
+                } else {
+                    d1 = -exp(log_abs_d1);
+                    d2 = d1 * (1.0 - exp(a)) - d1 * d1;
+                }
             }
         } else {
-            ech = exp(ch_r + eta);
-            d1 = (ech * exp(-ech)) / pob;
-            d2 = d1 * (1 - ech) - d1 * d1;
+            double a = ch_r + eta;
+            double log_numer = a - exp(a);
+            double log_abs_d1 = log_numer - log_pob;
+            if (log_abs_d1 < -36.0 || log_numer < -700.0) {
+                d1 = 0.0; d2 = 0.0;
+            } else {
+                d1 = exp(log_abs_d1);
+                d2 = d1 * (1.0 - exp(a)) - d1 * d1;
+            }
         }
 
         ans[0] = d1;
@@ -318,7 +343,56 @@ public:
         return(ans);
     };
 
-	
+    // Numerically stable log(S(s1|eta) - S(s2|eta)) for PH model.
+    // Computes log(s1^nu - s2^nu) where nu = exp(eta) in log-space,
+    // avoiding underflow when s^nu is near zero.
+    double cal_log_obs(double s1, double s2, double eta) {
+        double nu = exp(eta);
+        if (s1 >= 1.0 && s2 <= 0.0) {
+            return 0.0;
+        }
+        if (s2 <= 0.0) {
+            return nu * log(s1);
+        }
+        if (s1 >= 1.0) {
+            // log(1 - s2^nu) = log(1 - exp(nu*log(s2)))
+            return log1mexp(-nu * log(s2));
+        }
+        // General: log(s1^nu - s2^nu)
+        //   = nu*log(s1) + log(1 - exp(nu*log(s2/s1)))
+        //   = nu*log(s1) + log1mexp(nu*log(s1/s2))
+        double log_ratio = log(s1) - log(s2);
+        return nu * log(s1) + log1mexp(nu * log_ratio);
+    }
+
+    // Numerically stable update_p_ob for PH model.
+    // Uses direct computation when possible (bit-exact with old code),
+    // falls back to log-space when pob underflows to 0.
+    void update_p_ob(int s, int i) {
+        double chl = baseCH[s][ obs_inf[s][i].l ];
+        double chr = baseCH[s][ obs_inf[s][i].r + 1 ];
+        double eta = etas[s][i];
+        double sl = basHaz2CondS(chl, eta);
+        double sr = basHaz2CondS(chr, eta);
+        obs_inf[s][i].pob = sl - sr;
+        if (obs_inf[s][i].pob > 0.0) {
+            obs_inf[s][i].log_pob = log(obs_inf[s][i].pob);
+        } else {
+            // pob underflowed to 0 or negative (monotonicity violation).
+            // Use log-space: log(pob) = -exp(a) + log1mexp(exp(b) - exp(a))
+            double ea = exp(chl + eta);
+            double eb = exp(chr + eta);
+            double diff = eb - ea;
+            if (diff > 0.0) {
+                obs_inf[s][i].log_pob = -ea + log1mexp(diff);
+                obs_inf[s][i].pob = exp(obs_inf[s][i].log_pob);
+            } else {
+                obs_inf[s][i].log_pob = R_NegInf;
+                obs_inf[s][i].pob = 0.0;
+            }
+        }
+    }
+
     virtual ~icm_ph(){};
 };
 
@@ -485,7 +559,7 @@ public:
     };
  */
 
-  std::vector<double> dllk_dch_i(double ch_l, double ch_r, double eta, double pob, bool left) {
+  std::vector<double> dllk_dch_i(double ch_l, double ch_r, double eta, double log_pob, bool left) {
         std::vector<double> ans(2);
         double d1 = 0.0, d2 = 0.0;
         
@@ -565,7 +639,16 @@ public:
         return(ans);
     };
 
-
+    // Numerically stable log(S(s1|eta) - S(s2|eta)) for PO model.
+    // Uses the identity: S_l - S_r = nu*(s_l - s_r) / (D_l * D_r)
+    // where D = s*(nu-1) + 1, avoiding cancellation.
+    double cal_log_obs(double s1, double s2, double eta) {
+        if (s1 >= 1.0 && s2 <= 0.0) return 0.0;
+        double nu = exp(eta);
+        double D1 = s1 * (nu - 1.0) + 1.0;
+        double D2 = s2 * (nu - 1.0) + 1.0;
+        return eta + log(s1 - s2) - log(D1) - log(D2);
+    }
 
     virtual ~icm_po(){};
 };

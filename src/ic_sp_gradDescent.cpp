@@ -417,8 +417,7 @@ double icm_Abst::cal_log_obs(double s1, double s2, double eta){
     double l = baseS2CondS(s1, eta);
     double r = baseS2CondS(s2, eta);
     if (l - r <= 0){
-       warning("observation log probability is <= 0. (left = %f, right = %f)\n", l, r);
-       throw("Log obs prob calculation -Inf");
+       return(R_NegInf);
     }
     return(log(l - r) );
 }
@@ -554,6 +553,9 @@ void icm_Abst::analytical_dobs_dp(int s){
         // double none, right_only, left_only, both;
         RightOnly[i] = 0;
         Both[i] = 0;
+
+        // Skip observations with degenerate probabilities
+        if (pob == R_NegInf) continue;
         
         // none = right_only = left_only = both = 0.0; //dllk_dp_i(sl, sr, eta, pob, false, false) * w[s][i];
                 

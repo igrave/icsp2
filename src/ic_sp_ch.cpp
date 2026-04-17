@@ -16,6 +16,7 @@ void icm_Abst::update_p_ob(int s, int i){
     double chr = baseCH[s][ obs_inf[s][i].r +1 ];
     double eta = etas[s][i];
     obs_inf[s][i].pob = basHaz2CondS(chl, eta) - basHaz2CondS(chr, eta);
+    obs_inf[s][i].log_pob = log(obs_inf[s][i].pob);
 }
 
 double icm_Abst::sum_llk(int s){
@@ -23,7 +24,7 @@ double icm_Abst::sum_llk(int s){
     double ans = 0;
     for(int i = 0; i < n; i++){
         update_p_ob(s, i);
-        ans += log(obs_inf[s][i].pob) * w[s][i];
+        ans += obs_inf[s][i].log_pob * w[s][i];
     }
     if(ISNAN(ans)) {ans = R_NegInf;}
     return(ans);
@@ -45,12 +46,12 @@ double icm_Abst::par_llk(int s, int ind){
     for(int i = 0; i < num_l; i++){
         thisInd = node_inf[s][ind].l[i];
         update_p_ob(s, thisInd);
-        ans+= log(obs_inf[s][thisInd].pob) * w[s][thisInd];
+        ans+= obs_inf[s][thisInd].log_pob * w[s][thisInd];
     }
     for(int i = 0; i < num_r; i++){
         thisInd = node_inf[s][ind].r[i];
         update_p_ob(s, thisInd);
-        ans+= log(obs_inf[s][thisInd].pob) * w[s][thisInd];
+        ans+= obs_inf[s][thisInd].log_pob * w[s][thisInd];
     }
     if(ISNAN(ans)) ans = R_NegInf;
     return(ans);
@@ -336,7 +337,7 @@ void icm_Abst::analytical_dobs_dch(int s, std::vector<double> &d1, std::vector<d
             double eta = etas[s][obs];
 
             std::vector<double> derivs(2);
-            derivs = dllk_dch_i(chl, chr, eta, obs_inf[s][obs].pob, true);
+            derivs = dllk_dch_i(chl, chr, eta, obs_inf[s][obs].log_pob, true);
             if(std::isnan(derivs[0]) || std::isnan(derivs[1])){
                 Rcpp::Rcout << "NaN detected in analytical_dobs_dch at stratum " << s << ", observation " << obs << std::endl;
             }
@@ -352,7 +353,7 @@ void icm_Abst::analytical_dobs_dch(int s, std::vector<double> &d1, std::vector<d
             double chr = baseCH[s][obs_inf[s][obs].r + 1];
             double eta = etas[s][obs];
             std::vector<double> derivs(2);
-            derivs = dllk_dch_i(chl, chr, eta, obs_inf[s][obs].pob, false);
+            derivs = dllk_dch_i(chl, chr, eta, obs_inf[s][obs].log_pob, false);
             
             if(std::isnan(derivs[0]) || std::isnan(derivs[1])){
                 Rcpp::Rcout << "NaN detected in analytical_dobs_dch at stratum " << s << ", observation " << obs << std::endl;
@@ -518,7 +519,7 @@ void icm_Abst::calcAnalyticRegDervs(Eigen::MatrixXd &hess, Eigen::VectorXd &d1){
             lind = obs_inf[s][i].l;
             rind = obs_inf[s][i].r;
             pob  = obs_inf[s][i].pob;
-            log_p = log(pob);
+            log_p = obs_inf[s][i].log_pob;
             l_ch = baseCH[s][lind];
             r_ch = baseCH[s][rind + 1];
             eta  = etas[s][i];
@@ -602,7 +603,7 @@ void icm_Abst::calcFinalRegContr(Eigen::MatrixXd &hess, Eigen::VectorXd &d1, Eig
             lind = obs_inf[s][i].l;
             rind = obs_inf[s][i].r;
             pob  = obs_inf[s][i].pob;
-            log_p = log(pob);
+            log_p = obs_inf[s][i].log_pob;
             l_ch = baseCH[s][lind];
             r_ch = baseCH[s][rind + 1];
             eta  = etas[s][i];
@@ -736,6 +737,9 @@ SEXP ic_sp_ch(SEXP Rlind, SEXP Rrind, SEXP Rcovars, SEXP fitType,
             int baselineUpdates = INTEGER(R_baselineUpdates)[0];
     
             llk_new = optObj->run(maxIter, tol, useGD, baselineUpdates);
+            if (llk_new == R_NegInf) {
+                throw std::runtime_error("Log-likelihood is -Inf after optimization.");
+            }
             if (restart > 0) {
                 Rprintf("Optimization successfully completed with derivative method %d.", derivMethod);
             }
@@ -787,7 +791,7 @@ SEXP ic_sp_ch(SEXP Rlind, SEXP Rrind, SEXP Rcovars, SEXP fitType,
         int n = optObj->obs_inf[s].size();
         SEXP R_slk_s = PROTECT(Rf_allocVector(REALSXP, n));
         for (int i = 0; i < n; i++) {
-            REAL(R_slk_s)[i] = log(optObj->obs_inf[s][i].pob);
+            REAL(R_slk_s)[i] = optObj->obs_inf[s][i].log_pob;
         }
         SET_VECTOR_ELT(R_subj_llk, s, R_slk_s);
         UNPROTECT(1);
@@ -859,6 +863,7 @@ double icm_Abst::run(int maxIter, double tol, bool useGD, int baselineUpdates){
         icm_step();
         if(useGD){ gradientDescent_step();}		
         icm_step();
+        llk_new = sum_llk_all(); // recompute after warm-up steps
     }
  
     while(iter < maxIter && (llk_new - llk_old) > tol){

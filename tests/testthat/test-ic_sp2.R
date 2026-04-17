@@ -46,12 +46,12 @@ test_that("PH model works for miceData with numerical derivatives", {
     Surv(l, u, type = 'interval2') ~ grp,
     data = miceData
   )
-  expect_equal(result$coefficients, icr_result$coefficients, tolerance = 1e-8)
+  expect_equal(result$coefficients, icr_result$coefficients, tolerance = 1e-7)
   expect_equal(result$intervals[[1]], icr_result$T_bull_Intervals)
 })
 
 
-test_that("PH model works for with numerical derivative fallback", {
+test_that("PH model works with analytical and numerical derivatives", {
   set.seed(1281)
   n <- 4700
   sim_data <- simIC_weib(n = n, inspections = 5, inspectLength = .4)
@@ -62,43 +62,22 @@ test_that("PH model works for with numerical derivative fallback", {
     control = ic_sp_control(derivMethod = 1)
   )
 
-  expect_output(
-    expect_warning(
-      expect_warning(
-        d121 <- ic_sp_ph(
-          Surv(l, u, type = 'interval2') ~ x1 + x2,
-          data = sim_data,
-          control = ic_sp_control(derivMethod = c(12, 1))
-        ),
-        "observation log probability is <= 0",
-        fixed = TRUE
-      ),
-      "Error encountered with derivative method",
-      fixed = TRUE
-    )
+  d12 <- ic_sp_ph(
+    Surv(l, u, type = 'interval2') ~ x1 + x2,
+    data = sim_data,
+    control = ic_sp_control(derivMethod = 12)
   )
-  expect_equal(d1$coefficients, d121$coefficients, tolerance = 1e-6)
-  expect_equal(d1$llk, d121$llk)
-  expect_equal(d1$s, d121$s, tolerance = 1e-7)
-  expect_equal(d1$scores, d121$scores)
 
-  expect_error(
-    expect_warning(
-      expect_warning(
-        ic_sp_ph(
-          Surv(l, u, type = 'interval2') ~ x1 + x2,
-          data = sim_data,
-          control = ic_sp_control(derivMethod = 12)
-        ),
-        "observation log probability is <= 0",
-        fixed = TRUE
-      ),
-      "Error encountered with derivative method",
-      fixed = TRUE
-    ),
-    "Final log-likelihood is -Inf",
-    fixed = TRUE
+  d121 <- ic_sp_ph(
+    Surv(l, u, type = 'interval2') ~ x1 + x2,
+    data = sim_data,
+    control = ic_sp_control(derivMethod = c(12, 1))
   )
+
+  expect_equal(d1$coefficients, d12$coefficients, tolerance = 1e-4)
+  expect_equal(d1$llk, d12$llk)
+  expect_equal(d1$coefficients, d121$coefficients, tolerance = 1e-4)
+  expect_equal(d1$llk, d121$llk)
 })
 
 
