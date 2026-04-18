@@ -706,7 +706,8 @@ void icm_Abst::covar_nr_step(){
 SEXP ic_sp_ch(SEXP Rlind, SEXP Rrind, SEXP Rcovars, SEXP fitType,
               SEXP R_w, SEXP R_strata, SEXP R_use_GD, SEXP R_maxiter,
               SEXP R_baselineUpdates, SEXP R_useFullHess, SEXP R_updateCovars,
-              SEXP R_initialRegVals, SEXP R_derivMethod) {
+              SEXP R_initialRegVals, SEXP R_derivMethod,
+              SEXP R_baselineStart) {
     icm_Abst* optObj;
     bool useGD = LOGICAL(R_use_GD)[0] == TRUE;
     
@@ -728,7 +729,21 @@ SEXP ic_sp_ch(SEXP Rlind, SEXP Rrind, SEXP Rcovars, SEXP fitType,
         }
         try {
             setup_icm(Rlind, Rrind, Rcovars, R_w, R_strata, R_initialRegVals, optObj);
-    
+
+            // Warm-start baseline from previous fit if provided
+            if (R_baselineStart != R_NilValue) {
+                for (int s = 0; s < optObj->n_strata; s++) {
+                    SEXP s_vec = VECTOR_ELT(R_baselineStart, s);
+                    int k = Rf_length(s_vec);
+                    double* s_ptr = REAL(s_vec);
+                    optObj->baseS[s].resize(k);
+                    for (int i = 0; i < k; i++) {
+                        optObj->baseS[s][i] = s_ptr[i];
+                    }
+                    optObj->baseS_2_baseCH(s);
+                }
+            }
+
             optObj->useFullHess = LOGICAL(R_useFullHess)[0] == TRUE;
             optObj->derivMethod = derivMethod;//INTEGER(R_derivMethod)[0];
     
