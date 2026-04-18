@@ -284,24 +284,10 @@ void icm_Abst::gradientDescent_step(){
 
         if (derivMethod >= 10) {
             analytical_dobs_dp(s);
-            // other_deriv.resize(base_p_derv[s].size());
-            // for (int i = 0; i < base_p_derv[s].size(); i++) {
-            //     other_deriv[i] = base_p_derv[s][i];
-            // }
         } else {
             numeric_dobs_dp(s, true);
         }
 
-        // Rcpp::Rcout << "Gradient Ascent Step for Stratum " << s << endl;
-        // for (int i = 0; i < base_p_derv[s].size(); i++) {
-        //    Rcpp::Rcout << "base_p_derv: " << base_p_derv[s][i] - other_deriv[i] << endl;
-        // }
-
-        // if (derivMethod >= 10) {
-        //     for (int i = 0; i < base_p_derv[s].size(); i++) {
-        //         base_p_derv[s][i] = other_deriv[i];
-        //     }
-        // }
         int k = base_p_derv[s].size();
 
         prop_p[s].resize(k);
@@ -322,6 +308,11 @@ void icm_Abst::gradientDescent_step(){
             if(isActive[i]){ prop_mean += base_p_derv[s][i]; }
         }
 
+        if(act_sum == 0){
+            failedGA_counts++;
+            baseCH[s] = backupCH[s];
+            continue;
+        }
         prop_mean = prop_mean / act_sum;
 
         for(int i = 0; i < k; i++){

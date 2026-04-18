@@ -249,10 +249,8 @@ void setup_icm(SEXP Rlind, SEXP Rrind, SEXP RCovars, SEXP R_w, SEXP R_strata,
 
 /*      OPTIMIZATION TOOLS      */
 void icm_Abst::numericBaseDervsOne(int s, int raw_ind, std::vector<double> &dvec){
-    dvec.resize(2);
-    dvec[0] = 0;
-    dvec[1] = 0;
-    dvec[2] = 0;
+    dvec.assign(3, 0.0);
+    
     if(raw_ind <= 0 || raw_ind >= (baseCH[s].size()- 1)){Rprintf("warning: inappropriate choice of ind for numericBaseDervs ind = %d\n", raw_ind); return;}
     
     h = h / 25.0;
