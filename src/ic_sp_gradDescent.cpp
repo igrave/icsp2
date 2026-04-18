@@ -67,7 +67,7 @@ double icm_Abst::llk_from_p(int s){
 
  
  
-double icm_Abst::getMaxScaleSize(std::vector<double> &p, std::vector<double> &prop_p){
+double icm_Abst::getMaxScaleSize(const std::vector<double> &p, const std::vector<double> &prop_p){
     double max_scale = 2.0;
     int k = p.size();
     int k2 = prop_p.size();

@@ -149,7 +149,7 @@ public:
     void baseS_2_baseCH(int s);
     void calc_cond_S_derv();
     void calc_base_p_derv();
-    double getMaxScaleSize( std::vector<double> &p, std::vector<double> &prop_p);
+    double getMaxScaleSize(const std::vector<double> &p, const std::vector<double> &prop_p);
     void gradientDescent_step();
     void auto_base_p_derv(int s);
     void analytical_dobs_dp(int s);
