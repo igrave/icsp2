@@ -16,6 +16,10 @@
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/comparison.html">comparison</a></li>
+  </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -40,7 +44,7 @@
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="co"># S3 method for class 'ic_sp2'</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov</a></span><span class="op">(</span><span class="va">object</span>, typical <span class="op">=</span> <span class="fl">1</span>, large <span class="op">=</span> <span class="fl">2</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov</a></span><span class="op">(</span><span class="va">object</span>, type <span class="op">=</span> <span class="st">"oim_curvature"</span>, fixed <span class="op">=</span> <span class="fl">5</span>, typical <span class="op">=</span> <span class="fl">1</span>, large <span class="op">=</span> <span class="fl">2</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -51,12 +55,22 @@
 <dd><p>Fitted model object from <code>ic_sp</code></p></dd>
 
 
+<dt id="arg-type">type<a class="anchor" aria-label="anchor" href="#arg-type"></a></dt>
+<dd><p>One of <code>"oim_curvature"</code> (default), <code>"oim_fixed"</code>, or <code>"opg_fixed"</code>. See details for explanation.</p></dd>
+
+
+<dt id="arg-fixed">fixed<a class="anchor" aria-label="anchor" href="#arg-fixed"></a></dt>
+<dd><p>A fixed factor to multiply by <code>n^(-1/2)</code> to determin the perturbation size for fixed types.</p></dd>
+
+
 <dt id="arg-typical">typical<a class="anchor" aria-label="anchor" href="#arg-typical"></a></dt>
-<dd><p>A typical value for the regression parameters, used to determine the scale of <code>h_n</code>. Default is 1.</p></dd>
+<dd><p>A typical value for the regression parameters, used to determine the scale of <code>h_n</code>. Default is 1.
+This is required for the <code>"oim_curvature"</code> type.</p></dd>
 
 
 <dt id="arg-large">large<a class="anchor" aria-label="anchor" href="#arg-large"></a></dt>
-<dd><p>A large value for the regression parameters, used to determine the scale of <code>h_n</code>. Default is 2.</p></dd>
+<dd><p>A large value for the regression parameters, used to determine the scale of <code>h_n</code>. Default is 2.
+This is required for the <code>"oim_curvature"</code> type.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
@@ -69,16 +83,31 @@
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>The covariance matrix is calculated using the profile likelihood approach
-described in Boruvka and Cook (2014). This method involves perturbing the
-regression parameters and refitting the model to estimate the curvature of
-the log-likelihood function, which is then used to compute the covariance matrix.
+    <p>The covariance matrix is calculated using the profile likelihood approach.
+(Murphey and Vand Der Vaart 2000).
+This method involves perturbing the regression parameters and
+refitting the model to estimate the curvature of the log-likelihood function,
+which is then used to compute the covariance matrix.
+We borrowing the naming convention from the Stata <code>stintcox</code> manual
+<a href="https://www.stata.com/manuals/ststintcox.pdf" class="external-link">https://www.stata.com/manuals/ststintcox.pdf</a>.</p>
+<p>Type <code>"oim_curvature"</code> (Boruvka and Cook 2015) uses the curvature of the log-likelihood function to
+determine the perturbation size for the profile likelihood calculations, as
+described in Boruvka and Cook (2014).
 The <code>typical</code> and <code>large</code> parameters are used to determine the scale of the
 perturbations.</p>
+<p>Type <code>"oim_fixed"</code> (Zeng et al 2016) uses a fixed perturbation size based on the <code>fixed</code>
+parameter and the sample size <code>n</code>.</p>
+<p>Type <code>"opg_fixed"</code> (Zeng et al 2017) uses a fixed perturbation size based on the <code>fixed</code>
+parameter and the sample size <code>n</code>, but uses the outer product of gradients
+instead of the observed information matrix for the covariance calculation.</p>
+<p>For larged values of <code>fixed</code> the model fitting may fail to converge.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
-    <p>Boruvka, A., and Cook, R. J. (2015), A Cox-Aalen Model for Interval-censored Data. Scand J Statist, 42, 414–426. doi: 10.1111/sjos.12113.</p>
+    <p>Murphy, S. A., &amp; Van Der Vaart, A. W. (2000). On Profile Likelihood. Journal of the American Statistical Association, 95(450), 449–465. https://doi.org/10.1080/01621459.2000.10474219</p>
+<p>Boruvka, A., and Cook, R. J. (2015), A Cox-Aalen Model for Interval-censored Data. Scand J Statist, 42, 414–426. doi: 10.1111/sjos.12113.</p>
+<p>Donglin Zeng, Lu Mao, D. Y. Lin, Maximum likelihood estimation for semiparametric transformation models with interval-censored data, Biometrika, Volume 103, Issue 2, June 2016, Pages 253–271, https://doi.org/10.1093/biomet/asw013</p>
+<p>Donglin Zeng, Fei Gao, D. Y. Lin, Maximum likelihood estimation for semiparametric regression models with multivariate interval-censored data, Biometrika, Volume 104, Issue 3, September 2017, Pages 505–525, https://doi.org/10.1093/biomet/asx029</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

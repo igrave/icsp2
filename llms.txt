@@ -60,3 +60,8 @@ test using Sun type weights and imputed variance.
 - [`cpp_logrank()`](https://igrave.github.io/icsp2/reference/cpp_logrank.md)
   : Internal fast log-rank test implementation
 
+# Articles
+
+### All vignettes
+
+- [comparison](https://igrave.github.io/icsp2/articles/comparison.md):
