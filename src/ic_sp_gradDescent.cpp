@@ -486,7 +486,12 @@ void icm_Abst::numeric_dobs_dp(int s, bool forGA){
     		lind = obs_inf[s][i].l;
     		rind = obs_inf[s][i].r + 1;
     		thisProb = baseS[s][lind] - baseS[s][rind];
-    		dob_dp_rightOnly[s][i] = 1.0/(num_n*thisProb);
+    		
+            if(thisProb > 0.0){
+               dob_dp_rightOnly[s][i] = 1.0 / (num_n * thisProb);
+            } else {
+                dob_dp_rightOnly[s][i] = 0.0;
+            }
     	}
     }
 
