@@ -159,6 +159,8 @@ public:
     std::vector<std::vector<double>> dob_dp_both;
     std::vector<std::vector<double>> dob_dp_rightOnly;
 
+    std::vector<std::vector<int>> isActive; // for gradientDescent_step()
+
 	double run(int maxIter, double tol, bool useGA, int baselineUpdates);
     
     void numeric_dobs_dp(int s, bool forGA);

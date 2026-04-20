@@ -185,6 +185,8 @@ void setup_icm(SEXP Rlind, SEXP Rrind, SEXP RCovars, SEXP R_w, SEXP R_strata,
     icm_obj->usedVec.resize(nS);
     icm_obj->dob_dp_both.resize(nS);
     icm_obj->dob_dp_rightOnly.resize(nS);
+    
+    icm_obj->isActive.resize(nS);
 
     icm_obj->base_p_2ndDerv.resize(nS);
     icm_obj->base_p_derv.resize(nS);

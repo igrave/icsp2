@@ -114,17 +114,18 @@ void icm_Abst::gradientDescent_step(){
         int act_sum = 0;
         double new_llk;
 
-        std::vector<bool> isActive(k);
+        isActive[s].assign(k, 0);
+        
         for(int i = 0; i < k; i++){
             if(baseP[s][i] > 0 && !ISNAN(base_p_derv[s][i]) ){
-                isActive[i] = true;
+                isActive[s][i] = 1;
                 act_sum++;
             }
-            else { isActive[i] = false; }
+            else { isActive[s][i] = 0; }
         }
 
         for(int i = 0; i < k; i++){
-            if(isActive[i]){ prop_mean += base_p_derv[s][i]; }
+            if(isActive[s][i]){ prop_mean += base_p_derv[s][i]; }
         }
 
         if(act_sum == 0){
@@ -135,7 +136,7 @@ void icm_Abst::gradientDescent_step(){
         prop_mean = prop_mean / act_sum;
 
         for(int i = 0; i < k; i++){
-           if(isActive[i]){ prop_p[s][i] = base_p_derv[s][i] - prop_mean;}
+           if(isActive[s][i]){ prop_p[s][i] = base_p_derv[s][i] - prop_mean;}
             else {prop_p[s][i] = 0.0;}
         }
         
