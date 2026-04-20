@@ -49,10 +49,11 @@ Variance-covariance matrix of the regression parameters.
 
 The covariance matrix is calculated using the profile likelihood
 approach. (Murphey and Vand Der Vaart 2000). This method involves
-perturbing the regression parameters and refitting the model to estimate
-the curvature of the log-likelihood function, which is then used to
-compute the covariance matrix. We borrowing the naming convention from
-the Stata `stintcox` manual
+perturbing the regression parameters, updating the baseline hazard
+estimates using the `profile_fit` function with the perturbed
+parameters, and calculating the change in log-likelihood for each
+perturbation, which is then used to compute the covariance matrix. We
+borrowing the naming convention from the Stata `stintcox` manual
 <https://www.stata.com/manuals/ststintcox.pdf>.
 
 Type `"oim_curvature"` (Boruvka and Cook 2015) uses the curvature of the
