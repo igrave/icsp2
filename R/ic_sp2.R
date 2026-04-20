@@ -229,7 +229,9 @@ ic_sp_po <- ic_sp2
   strata,
   model_type,
   other_info,
-  baseline_start = NULL
+  baseline_start = NULL,
+  covars_list = NULL,
+  mi_info = NULL
 ) {
   if (any(y[, 1] > y[, 2])) {
     stop(
@@ -244,13 +246,27 @@ ic_sp_po <- ic_sp2
   regStart <- other_info$regStart
   derivMethod <- other_info$derivMethod
 
-  mi_info <- by(y, strata, function(y_s) {
-    find_maximal_intersections(y_s[, 1], y_s[, 2])
-  })
+  if (is.null(mi_info)) {
+    mi_info <- by(y, strata, function(y_s) {
+      find_maximal_intersections(y_s[, 1], y_s[, 2])
+    })
+  } else {
+    if (!is.list(mi_info) || length(mi_info) != nlevels(strata)) {
+      stop("mi_info must be a list of length equal to the number of strata.")
+    }
+  }
 
-  covars_list <- lapply(split(seq_len(nrow(y)), strata), function(i) {
-    x[i, , drop = FALSE]
-  })
+  if (!is.null(covars_list)) {
+    if (!is.list(covars_list) || length(covars_list) != nlevels(strata)) {
+      stop(
+        "covars_list must be a list of length equal to the number of strata."
+      )
+    }
+  } else {
+    covars_list <- lapply(split(seq_len(nrow(y)), strata), function(i) {
+      x[i, , drop = FALSE]
+    })
+  }
 
   weights <- split(as.numeric(weights), strata)
 
@@ -303,6 +319,8 @@ ic_sp_po <- ic_sp2
   result[["intervals"]] <- lapply(mi_info, function(mi) {
     rbind(mi[["mi_l"]], mi[["mi_r"]])
   })
+  result$mi_info <- mi_info
+  result$covars_list <- covars_list
 
   return(result)
 }
@@ -469,7 +487,9 @@ profile_fit <- function(object, beta = object$coefficients) {
     model_type = paste0("ic_", object$model),
     weights = object$.dataEnv$weights,
     strata = object$.dataEnv$strata,
-    baseline_start = object$s
+    baseline_start = object$s,
+    covars_list = object$covars_list,
+    mi_info = object$mi_info
   )
   call_args$other_info$updateCovars <- FALSE
   call_args$other_info$regStart <- beta
