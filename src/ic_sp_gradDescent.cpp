@@ -353,16 +353,17 @@ void icm_Abst::gradientDescent_step(){
         double d2 = (llk_h + llk_l - 2.0 * llk_0 ) / (delta_val * delta_val);
 
         if(iter % 2 ==0){ d1 = analytic_dd; }
-        delta_val = -d1/d2;
-	
-        if(!(delta_val > 0)){
+        
+        if(!R_FINITE(d2) || std::abs(d2) <= 1e-8) {
             failedGA_counts++;
             baseCH[s] = backupCH[s];
             new_llk = sum_llk(s);
             continue;
         }
 
-        if(ISNAN(delta_val)){
+        delta_val = -d1/d2;
+	
+        if(!(R_FINITE(delta_val) && delta_val > 0.0)){
             failedGA_counts++;
             baseCH[s] = backupCH[s];
             new_llk = sum_llk(s);
