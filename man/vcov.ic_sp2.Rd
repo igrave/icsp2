@@ -4,14 +4,20 @@
 \alias{vcov.ic_sp2}
 \title{Profile Likelihood Covariance for Semi-Parametric Models}
 \usage{
-\method{vcov}{ic_sp2}(object, typical = 1, large = 2, ...)
+\method{vcov}{ic_sp2}(object, type = "oim_curvature", fixed = 5, typical = 1, large = 2, ...)
 }
 \arguments{
 \item{object}{Fitted model object from \code{ic_sp}}
 
-\item{typical}{A typical value for the regression parameters, used to determine the scale of \code{h_n}. Default is 1.}
+\item{type}{One of \code{"oim_curvature"} (default), \code{"oim_fixed"}, or \code{"opg_fixed"}. See details for explanation.}
 
-\item{large}{A large value for the regression parameters, used to determine the scale of \code{h_n}. Default is 2.}
+\item{fixed}{A fixed factor to multiply by \code{n^(-1/2)} to determin the perturbation size for fixed types.}
+
+\item{typical}{A typical value for the regression parameters, used to determine the scale of \code{h_n}. Default is 1.
+This is required for the \code{"oim_curvature"} type.}
+
+\item{large}{A large value for the regression parameters, used to determine the scale of \code{h_n}. Default is 2.
+This is required for the \code{"oim_curvature"} type.}
 
 \item{...}{Unused.}
 }
@@ -22,13 +28,35 @@ Variance-covariance matrix of the regression parameters.
 Profile Likelihood Covariance for Semi-Parametric Models
 }
 \details{
-The covariance matrix is calculated using the profile likelihood approach
-described in Boruvka and Cook (2014). This method involves perturbing the
-regression parameters and refitting the model to estimate the curvature of
-the log-likelihood function, which is then used to compute the covariance matrix.
+The covariance matrix is calculated using the profile likelihood approach.
+(Murphey and Vand Der Vaart 2000).
+This method involves perturbing the regression parameters and
+refitting the model to estimate the curvature of the log-likelihood function,
+which is then used to compute the covariance matrix.
+We borrowing the naming convention from the Stata \code{stintcox} manual
+\url{https://www.stata.com/manuals/ststintcox.pdf}.
+
+Type \code{"oim_curvature"} (Boruvka and Cook 2015) uses the curvature of the log-likelihood function to
+determine the perturbation size for the profile likelihood calculations, as
+described in Boruvka and Cook (2014).
 The \code{typical} and \code{large} parameters are used to determine the scale of the
 perturbations.
+
+Type \code{"oim_fixed"} (Zeng et al 2016) uses a fixed perturbation size based on the \code{fixed}
+parameter and the sample size \code{n}.
+
+Type \code{"opg_fixed"} (Zeng et al 2017) uses a fixed perturbation size based on the \code{fixed}
+parameter and the sample size \code{n}, but uses the outer product of gradients
+instead of the observed information matrix for the covariance calculation.
+
+For larged values of \code{fixed} the model fitting may fail to converge.
 }
 \references{
+Murphy, S. A., & Van Der Vaart, A. W. (2000). On Profile Likelihood. Journal of the American Statistical Association, 95(450), 449–465. https://doi.org/10.1080/01621459.2000.10474219
+
 Boruvka, A., and Cook, R. J. (2015), A Cox-Aalen Model for Interval-censored Data. Scand J Statist, 42, 414–426. doi: 10.1111/sjos.12113.
+
+Donglin Zeng, Lu Mao, D. Y. Lin, Maximum likelihood estimation for semiparametric transformation models with interval-censored data, Biometrika, Volume 103, Issue 2, June 2016, Pages 253–271, https://doi.org/10.1093/biomet/asw013
+
+Donglin Zeng, Fei Gao, D. Y. Lin, Maximum likelihood estimation for semiparametric regression models with multivariate interval-censored data, Biometrika, Volume 104, Issue 3, September 2017, Pages 505–525, https://doi.org/10.1093/biomet/asx029
 }

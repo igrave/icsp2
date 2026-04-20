@@ -285,7 +285,8 @@ ic_sp_po <- ic_sp2
     'iterations',
     'score',
     'hessian',
-    'd3'
+    'd3',
+    'subj_llk'
   )
   result <- list()
   result$p_hat <- lapply(c_ans$p_hat, function(p) p / sum(p))
@@ -296,6 +297,7 @@ ic_sp_po <- ic_sp2
   result$score <- c_ans$score
   result$hessian <- c_ans$hessian
   result$d3 <- c_ans$d3
+  result$subj_llk <- c_ans$subj_llk
   result[["intervals"]] <- lapply(mi_info, function(mi) {
     rbind(mi[["mi_l"]], mi[["mi_r"]])
   })
@@ -306,25 +308,62 @@ ic_sp_po <- ic_sp2
 
 #' Profile Likelihood Covariance for Semi-Parametric Models
 #' @param object Fitted model object from \code{ic_sp}
+#' @param type One of `"oim_curvature"` (default), `"oim_fixed"`, or `"opg_fixed"`. See details for explanation.
+#' @param fixed A fixed factor to multiply by `n^(-1/2)` to determin the perturbation size for fixed types.
 #' @param typical A typical value for the regression parameters, used to determine the scale of `h_n`. Default is 1.
+#' This is required for the `"oim_curvature"` type.
 #' @param large A large value for the regression parameters, used to determine the scale of `h_n`. Default is 2.
+#' This is required for the `"oim_curvature"` type.
 #' @param ... Unused.
 #' @return Variance-covariance matrix of the regression parameters.
 #' @details
-#' The covariance matrix is calculated using the profile likelihood approach
-#' described in Boruvka and Cook (2014). This method involves perturbing the
-#' regression parameters and refitting the model to estimate the curvature of
-#' the log-likelihood function, which is then used to compute the covariance matrix.
+#' The covariance matrix is calculated using the profile likelihood approach.
+#' (Murphey and Vand Der Vaart 2000).
+#' This method involves perturbing the regression parameters, updating the
+#' baseline hazard estimates using the `profile_fit` function with the perturbed
+#' parameters, and calculating the change in log-likelihood for each perturbation,
+#' which is then used to compute the covariance matrix.
+#' We borrowing the naming convention from the Stata `stintcox` manual
+#' \url{https://www.stata.com/manuals/ststintcox.pdf}.
+#'
+#' Type `"oim_curvature"` (Boruvka and Cook 2015) uses the curvature of the log-likelihood function to
+#' determine the perturbation size for the profile likelihood calculations, as
+#' described in Boruvka and Cook (2014).
 #' The `typical` and `large` parameters are used to determine the scale of the
 #' perturbations.
-#' @references Boruvka, A., and Cook, R. J. (2015), A Cox-Aalen Model for Interval-censored Data. Scand J Statist, 42, 414–426. doi: 10.1111/sjos.12113.
+#'
+#' Type `"oim_fixed"` (Zeng et al 2016) uses a fixed perturbation size based on the `fixed`
+#' parameter and the sample size `n`.
+#'
+#' Type `"opg_fixed"` (Zeng et al 2017) uses a fixed perturbation size based on the `fixed`
+#' parameter and the sample size `n`, but uses the outer product of gradients
+#' instead of the observed information matrix for the covariance calculation.
+#'
+#' For larged values of `fixed` the model fitting may fail to converge.
+#'
+#' @references
+#' Murphy, S. A., & Van Der Vaart, A. W. (2000). On Profile Likelihood. Journal of the American Statistical Association, 95(450), 449–465. https://doi.org/10.1080/01621459.2000.10474219
+#'
+#' Boruvka, A., and Cook, R. J. (2015), A Cox-Aalen Model for Interval-censored Data. Scand J Statist, 42, 414–426. doi: 10.1111/sjos.12113.
+#'
+#' Donglin Zeng, Lu Mao, D. Y. Lin, Maximum likelihood estimation for semiparametric transformation models with interval-censored data, Biometrika, Volume 103, Issue 2, June 2016, Pages 253–271, https://doi.org/10.1093/biomet/asw013
+#'
+#' Donglin Zeng, Fei Gao, D. Y. Lin, Maximum likelihood estimation for semiparametric regression models with multivariate interval-censored data, Biometrika, Volume 104, Issue 3, September 2017, Pages 505–525, https://doi.org/10.1093/biomet/asx029
 #' @exportS3Method vcov ic_sp2
-vcov.ic_sp2 <- function(object, typical = 1, large = 2, ...) {
+vcov.ic_sp2 <- function(
+  object,
+  type = "oim_curvature",
+  fixed = 5,
+  typical = 1,
+  large = 2,
+  ...
+) {
   if (!inherits(object, "ic_sp_ph") && !inherits(object, "ic_sp_po")) {
     stop("object must have class ic_sp_ph or ic_sp_po.")
   }
   stopifnot(is.numeric(typical), length(typical) == 1, typical > 0)
   stopifnot(is.numeric(large), length(large) == 1, large > 0)
+  stopifnot(is.numeric(fixed), length(fixed) == 1, fixed > 0)
   n <- nrow(object$.dataEnv$data)
   k <- length(object$coefficients)
 
@@ -332,55 +371,78 @@ vcov.ic_sp2 <- function(object, typical = 1, large = 2, ...) {
   llk_beta_k <- numeric(k)
   llk_beta_j_k <- matrix(NA, nrow = k, ncol = k)
 
-  h <- matrix(0, nrow = k, ncol = k)
-  curv <- function(object, i, j) {
-    a <- (-2 * object$llk / sum(abs(object$d3[unique(c(i, j))])))
-    sign(a) * abs(a)^(1 / 3)
-  }
-
-  for (i in seq_len(k)) {
-    for (j in seq(from = i, to = k)) {
-      curv_ij <- curv(object, i, j)
-      h[j, i] <- h[i, j] <- sign(curv_ij) *
-        max(
-          min(abs(curv_ij), large),
-          abs(object$coefficients[i]),
-          abs(object$coefficients[j]),
-          typical
-        ) /
-        sqrt(n)
+  if (type == "oim_curvature") {
+    # Curvature-based perturbation size
+    curv <- function(object, i, j) {
+      a <- (-2 * object$llk / sum(abs(object$d3[unique(c(i, j))])))
+      sign(a) * abs(a)^(1 / 3)
     }
-  }
-  for (i in seq_len(k)) {
-    beta <- object$coefficients
-    beta[i] <- beta[i] + h[i, i]
-    new_fit <- profile_fit(object, beta)
-    llk_beta_k[i] <- new_fit$llk
+    h <- matrix(0, nrow = k, ncol = k)
+    for (i in seq_len(k)) {
+      for (j in seq(from = i, to = k)) {
+        curv_ij <- curv(object, i, j)
+        h[j, i] <- h[i, j] <- sign(curv_ij) *
+          max(
+            min(abs(curv_ij), large),
+            abs(object$coefficients[i]),
+            abs(object$coefficients[j]),
+            typical
+          ) /
+          sqrt(n)
+      }
+    }
+  } else if (type == "oim_fixed") {
+    h <- matrix(fixed / sqrt(n), nrow = k, ncol = k)
+  } else if (type == "opg_fixed") {
+    h <- rep(fixed / sqrt(n), k)
+  } else {
+    stop(
+      "Invalid type. Must be one of 'oim_curvature', 'oim_fixed', or 'opg_fixed'."
+    )
   }
 
-  for (i in seq_len(k)) {
-    for (j in seq(from = i, to = k)) {
+  if (type %in% c("oim_fixed", "oim_curvature")) {
+    for (i in seq_len(k)) {
       beta <- object$coefficients
-      beta[i] <- beta[i] + h[i, j]
-      beta[j] <- beta[j] + h[i, j]
+      beta[i] <- beta[i] + h[i, i]
       new_fit <- profile_fit(object, beta)
-      llk_beta_j_k[i, j] <- new_fit$llk
-      if (i != j) {
-        llk_beta_j_k[j, i] <- new_fit$llk
+      llk_beta_k[i] <- new_fit$llk
+    }
+
+    for (i in seq_len(k)) {
+      for (j in seq(from = i, to = k)) {
+        beta <- object$coefficients
+        beta[i] <- beta[i] + h[i, j]
+        beta[j] <- beta[j] + h[i, j]
+        new_fit <- profile_fit(object, beta)
+        llk_beta_j_k[i, j] <- new_fit$llk
+        if (i != j) {
+          llk_beta_j_k[j, i] <- new_fit$llk
+        }
       }
     }
-  }
-  inv_cov <- matrix(NA, nrow = k, ncol = k)
-  for (i in seq_len(k)) {
-    for (j in seq(from = i, to = k)) {
-      inv_cov[i, j] <- ((llk_beta_k[i] - llk_beta) /
-        (h[i, i]^2) +
-        (llk_beta_k[j] - llk_beta) / (h[j, j]^2) -
-        (llk_beta_j_k[i, j] - llk_beta) / (h[i, j]^2))
-      if (i != j) {
-        inv_cov[j, i] <- inv_cov[i, j]
+    inv_cov <- matrix(NA, nrow = k, ncol = k)
+    for (i in seq_len(k)) {
+      for (j in seq(from = i, to = k)) {
+        inv_cov[i, j] <- ((llk_beta_k[i] - llk_beta) /
+          (h[i, i]^2) +
+          (llk_beta_k[j] - llk_beta) / (h[j, j]^2) -
+          (llk_beta_j_k[i, j] - llk_beta) / (h[i, j]^2))
+        if (i != j) {
+          inv_cov[j, i] <- inv_cov[i, j]
+        }
       }
     }
+  } else if (type == "opg_fixed") {
+    d <- matrix(0, nrow = n, ncol = k)
+    for (i in seq_len(k)) {
+      beta <- object$coefficients
+      beta[i] <- beta[i] + h[i]
+      new_fit <- profile_fit(object, beta)
+
+      d[, i] <- (unlist(new_fit$subj_llk) - unlist(object$subj_llk)) / h[i]
+    }
+    inv_cov <- t(d) %*% d
   }
   result <- list()
   result$inv_cov <- inv_cov
