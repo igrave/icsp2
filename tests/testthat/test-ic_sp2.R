@@ -253,3 +253,32 @@ test_that("profile_fit is stable under coefficient perturbation", {
   expect_gt(prof$iterations, 0L)
   expect_lt(prof$iterations, fit$other_info$maxIter)
 })
+
+test_that("numerical-derivative fit converges before maxIter in flatter settings", {
+  set.seed(1998)
+  n <- 80
+  sim_data <- simIC_weib(
+    n = n,
+    inspections = 3,
+    inspectLength = 0.6,
+    b1 = 0.95,
+    b2 = -0.5
+  )
+
+  z <- as.data.frame(matrix(rnorm(n * 6), nrow = n, ncol = 6))
+  colnames(z) <- paste0("z", 1:6)
+  sim_data <- cbind(sim_data, z)
+
+  fit <- expect_no_error(
+    ic_sp_ph(
+      Surv(l, u, type = "interval2") ~ x1 + x2 + z1 + z2 + z3 + z4 + z5 + z6,
+      data = sim_data,
+      control = ic_sp_control(derivMethod = 1, maxIter = 250)
+    )
+  )
+
+  expect_true(is.finite(fit$llk))
+  expect_true(all(is.finite(fit$coefficients)))
+  expect_gt(fit$iterations, 0)
+  expect_lt(fit$iterations, fit$other_info$maxIter)
+})
