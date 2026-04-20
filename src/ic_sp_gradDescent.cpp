@@ -67,7 +67,7 @@ double icm_Abst::llk_from_p(int s){
 
  
  
-double icm_Abst::getMaxScaleSize(std::vector<double> &p, std::vector<double> &prop_p){
+double icm_Abst::getMaxScaleSize(const std::vector<double> &p, const std::vector<double> &prop_p){
     double max_scale = 2.0;
     int k = p.size();
     int k2 = prop_p.size();
@@ -284,24 +284,10 @@ void icm_Abst::gradientDescent_step(){
 
         if (derivMethod >= 10) {
             analytical_dobs_dp(s);
-            // other_deriv.resize(base_p_derv[s].size());
-            // for (int i = 0; i < base_p_derv[s].size(); i++) {
-            //     other_deriv[i] = base_p_derv[s][i];
-            // }
         } else {
             numeric_dobs_dp(s, true);
         }
 
-        // Rcpp::Rcout << "Gradient Ascent Step for Stratum " << s << endl;
-        // for (int i = 0; i < base_p_derv[s].size(); i++) {
-        //    Rcpp::Rcout << "base_p_derv: " << base_p_derv[s][i] - other_deriv[i] << endl;
-        // }
-
-        // if (derivMethod >= 10) {
-        //     for (int i = 0; i < base_p_derv[s].size(); i++) {
-        //         base_p_derv[s][i] = other_deriv[i];
-        //     }
-        // }
         int k = base_p_derv[s].size();
 
         prop_p[s].resize(k);
@@ -322,6 +308,11 @@ void icm_Abst::gradientDescent_step(){
             if(isActive[i]){ prop_mean += base_p_derv[s][i]; }
         }
 
+        if(act_sum == 0){
+            failedGA_counts++;
+            baseCH[s] = backupCH[s];
+            continue;
+        }
         prop_mean = prop_mean / act_sum;
 
         for(int i = 0; i < k; i++){
@@ -362,16 +353,17 @@ void icm_Abst::gradientDescent_step(){
         double d2 = (llk_h + llk_l - 2.0 * llk_0 ) / (delta_val * delta_val);
 
         if(iter % 2 ==0){ d1 = analytic_dd; }
-        delta_val = -d1/d2;
-	
-        if(!(delta_val > 0)){
+        
+        if(!R_FINITE(d2) || std::abs(d2) <= 1e-8) {
             failedGA_counts++;
             baseCH[s] = backupCH[s];
             new_llk = sum_llk(s);
             continue;
         }
 
-        if(ISNAN(delta_val)){
+        delta_val = -d1/d2;
+	
+        if(!(R_FINITE(delta_val) && delta_val > 0.0)){
             failedGA_counts++;
             baseCH[s] = backupCH[s];
             new_llk = sum_llk(s);
@@ -417,8 +409,7 @@ double icm_Abst::cal_log_obs(double s1, double s2, double eta){
     double l = baseS2CondS(s1, eta);
     double r = baseS2CondS(s2, eta);
     if (l - r <= 0){
-       warning("observation log probability is <= 0. (left = %f, right = %f)\n", l, r);
-       throw("Log obs prob calculation -Inf");
+       return(R_NegInf);
     }
     return(log(l - r) );
 }
@@ -495,7 +486,12 @@ void icm_Abst::numeric_dobs_dp(int s, bool forGA){
     		lind = obs_inf[s][i].l;
     		rind = obs_inf[s][i].r + 1;
     		thisProb = baseS[s][lind] - baseS[s][rind];
-    		dob_dp_rightOnly[s][i] = 1.0/(num_n*thisProb);
+    		
+            if(thisProb > 0.0){
+               dob_dp_rightOnly[s][i] = 1.0 / (num_n * thisProb);
+            } else {
+                dob_dp_rightOnly[s][i] = 0.0;
+            }
     	}
     }
 
@@ -554,6 +550,9 @@ void icm_Abst::analytical_dobs_dp(int s){
         // double none, right_only, left_only, both;
         RightOnly[i] = 0;
         Both[i] = 0;
+
+        // Skip observations with degenerate probabilities
+        if (pob == R_NegInf) continue;
         
         // none = right_only = left_only = both = 0.0; //dllk_dp_i(sl, sr, eta, pob, false, false) * w[s][i];
                 

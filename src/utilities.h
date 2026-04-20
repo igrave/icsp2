@@ -8,7 +8,7 @@
 double max(double a, double b);
 double max(int a, int b);
 double min(double a, double b);
-double max(Eigen::VectorXd v);
+double max(const Eigen::VectorXd &v);
 double signVal(double x);
 
 // Vector operations
@@ -29,9 +29,9 @@ void addIfNeeded(std::vector<int> &points, int l, int r, int max);
 
 // Matrix/vector conversions
 void copyRmatrix_intoEigen(SEXP r_mat, Eigen::MatrixXd &e_mat);
-Rcpp::NumericMatrix eigen2RMat(Eigen::MatrixXd &e_mat);
+Rcpp::NumericMatrix eigen2RMat(const Eigen::MatrixXd &e_mat);
 void Rvec2eigen(SEXP r_vec, Eigen::VectorXd &e_vec);
-Rcpp::NumericVector eigen2RVec(Eigen::VectorXd &e_vec);
+Rcpp::NumericVector eigen2RVec(const Eigen::VectorXd &e_vec);
 
 
 // SEXP utilities
@@ -51,7 +51,7 @@ std::vector<int> getSEXP_MatDims(SEXP R_mat);
 void getPosNegIndices(std::vector<double> &vals, std::vector<int> &isPos, std::vector<int> &isNeg);
 void getRelValIndices(double relVal, std::vector<double> &vals, std::vector<int> &subIndex,
                       std::vector<int> &above, std::vector<int> &below, int *max, int *min);
-double directional_derv(std::vector<double> &derv, std::vector<double> &delta);
+double directional_derv(const std::vector<double> &derv, const std::vector<double> &delta);
 void makeUnitVector(std::vector<double> &v);
 void getUniqInts(int i1, int i2, std::vector<int> &uniqInts, 
                  std::vector<std::vector<int>> &vec_vec, std::vector<bool> &usedVec);
@@ -63,8 +63,8 @@ int findSurroundingVals(double val, std::vector<double>& leftVec,
                         std::vector<double>& rightVec, bool isLeft);
 
 // Matrix utilities
-Eigen::MatrixXd xtx(Eigen::MatrixXd &x);
-Eigen::MatrixXd xtx(Eigen::MatrixXd &x, int row_start, int row_end);
-Eigen::MatrixXd copyRows(Eigen::MatrixXd &x, int row_start, int row_end);
+Eigen::MatrixXd xtx(const Eigen::MatrixXd &x);
+Eigen::MatrixXd xtx(const Eigen::MatrixXd &x, int row_start, int row_end);
+Eigen::MatrixXd copyRows(const Eigen::MatrixXd &x, int row_start, int row_end);
 
 #endif // UTILITIES_H

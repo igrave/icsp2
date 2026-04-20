@@ -228,7 +228,8 @@ ic_sp_po <- ic_sp2
   weights,
   strata,
   model_type,
-  other_info
+  other_info,
+  baseline_start = NULL
 ) {
   if (any(y[, 1] > y[, 2])) {
     stop(
@@ -276,7 +277,8 @@ ic_sp_po <- ic_sp2
     as.logical(useFullHess),
     as.logical(updateCovars),
     as.double(regStart),
-    as.integer(derivMethod)
+    as.integer(derivMethod),
+    baseline_start
   )
   names(c_ans) <- c(
     'p_hat',
@@ -466,7 +468,8 @@ profile_fit <- function(object, beta = object$coefficients) {
     y = object$.dataEnv$y,
     model_type = paste0("ic_", object$model),
     weights = object$.dataEnv$weights,
-    strata = object$.dataEnv$strata
+    strata = object$.dataEnv$strata,
+    baseline_start = object$s
   )
   call_args$other_info$updateCovars <- FALSE
   call_args$other_info$regStart <- beta

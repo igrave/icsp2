@@ -49,7 +49,7 @@ double min(double a, double b){
     return(b);
 }
 
-double max(Eigen::VectorXd v){
+double max(const Eigen::VectorXd &v){
     double maxVal = R_NegInf;
     for(int i = 0; i < v.size(); i++) {maxVal = max(maxVal, v[i]);}
     return(maxVal);
@@ -109,7 +109,7 @@ void copyRmatrix_intoEigen(SEXP r_mat, Eigen::MatrixXd &e_mat){
     UNPROTECT(1);
 }
 
-Rcpp::NumericMatrix eigen2RMat(Eigen::MatrixXd &e_mat){
+Rcpp::NumericMatrix eigen2RMat(const Eigen::MatrixXd &e_mat){
 	int nRow = e_mat.rows();
 	int nCol = e_mat.cols();
 	Rcpp::NumericMatrix ans(nRow, nCol);
@@ -128,7 +128,7 @@ void Rvec2eigen(SEXP r_vec, Eigen::VectorXd &e_vec){
         e_vec[i] = REAL(r_vec)[i];
 }
 
-Rcpp::NumericVector eigen2RVec(Eigen::VectorXd &e_vec){
+Rcpp::NumericVector eigen2RVec(const Eigen::VectorXd &e_vec){
 	int k = e_vec.size();
 	Rcpp::NumericVector ans(k);
 	double* cptr = &ans[0];
@@ -438,7 +438,7 @@ void getRelValIndices(double relVal, std::vector<double> &vals, std::vector<int>
     
 }
 
-double directional_derv(std::vector<double> &derv, std::vector<double> &delta){
+double directional_derv(const std::vector<double> &derv, const std::vector<double> &delta){
     int k = derv.size();
     int k2 = delta.size();
     if(k != k2){
@@ -540,7 +540,7 @@ int findSurroundingVals(double val, std::vector<double>& leftVec,
 	return(a);
 }
 
-Eigen::MatrixXd xtx(Eigen::MatrixXd &x){
+Eigen::MatrixXd xtx(const Eigen::MatrixXd &x){
 	int nCols = x.cols();
 	int nRows = x.rows();
 	Eigen::MatrixXd ans(nCols, nCols);
@@ -554,7 +554,7 @@ Eigen::MatrixXd xtx(Eigen::MatrixXd &x){
 	return(ans);
 }
 
-Eigen::MatrixXd xtx(Eigen::MatrixXd &x, int row_start, int row_end){
+Eigen::MatrixXd xtx(const Eigen::MatrixXd &x, int row_start, int row_end){
 	int nCols = x.cols();
 	Eigen::MatrixXd ans(nCols, nCols);
 	for(int i = 0; i < nCols; i++){
@@ -567,7 +567,7 @@ Eigen::MatrixXd xtx(Eigen::MatrixXd &x, int row_start, int row_end){
 	return(ans);
 }
 
-Eigen::MatrixXd copyRows(Eigen::MatrixXd &x, int row_start, int row_end){
+Eigen::MatrixXd copyRows(const Eigen::MatrixXd &x, int row_start, int row_end){
 	int nCols = x.cols();
 	int nRows = row_end - row_start + 1;
 	
