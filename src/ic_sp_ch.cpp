@@ -241,7 +241,7 @@ void setup_icm(SEXP Rlind, SEXP Rrind, SEXP RCovars, SEXP R_w, SEXP R_strata,
     }
                 
     icm_obj->startGD = false;
-    icm_obj->failedGA_counts = 0;
+    icm_obj->failedGA_counts.assign(nS, 0);
     icm_obj->iter = 0;
     icm_obj->numBaselineIts = 5;
     
@@ -368,6 +368,9 @@ void icm_Abst::analytical_dobs_dch(int s, std::vector<double> &d1, std::vector<d
 
 
 void icm_Abst::icm_step(){
+#ifdef _OPENMP
+#pragma omp parallel for schedule(dynamic)
+#endif
     for(int s = 0; s < n_strata; s++){
         icm_step_s(s);
     }

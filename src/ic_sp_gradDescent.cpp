@@ -93,8 +93,11 @@ double icm_Abst::getMaxScaleSize(const std::vector<double> &p, const std::vector
 
 void icm_Abst::gradientDescent_step(){
     
-	if(failedGA_counts > 500){return;}
+	if(std::accumulate(failedGA_counts.begin(), failedGA_counts.end(), 0) > 500){return;}
 	
+#ifdef _OPENMP
+#pragma omp parallel for schedule(dynamic)
+#endif
     for(int s = 0; s < n_strata; s++){
         double org_llk = sum_llk(s);
         backupCH[s] = baseCH[s];
@@ -129,7 +132,7 @@ void icm_Abst::gradientDescent_step(){
         }
 
         if(act_sum == 0){
-            failedGA_counts++;
+            failedGA_counts[s]++;
             baseCH[s] = backupCH[s];
             continue;
         }
@@ -155,7 +158,7 @@ void icm_Abst::gradientDescent_step(){
         double analytic_dd = directional_derv(base_p_derv[s], prop_p[s]);
 
         if(delta_val == 0){
-            failedGA_counts++;
+            failedGA_counts[s]++;
             baseCH[s] = backupCH[s];
             new_llk = sum_llk(s);
             continue; // continue with the next stratum
@@ -174,7 +177,7 @@ void icm_Abst::gradientDescent_step(){
         if(iter % 2 ==0){ d1 = analytic_dd; }
         
         if(!R_FINITE(d2) || std::abs(d2) <= 1e-8) {
-            failedGA_counts++;
+            failedGA_counts[s]++;
             baseCH[s] = backupCH[s];
             new_llk = sum_llk(s);
             continue;
@@ -183,7 +186,7 @@ void icm_Abst::gradientDescent_step(){
         delta_val = -d1/d2;
 	
         if(!(R_FINITE(delta_val) && delta_val > 0.0)){
-            failedGA_counts++;
+            failedGA_counts[s]++;
             baseCH[s] = backupCH[s];
             new_llk = sum_llk(s);
             continue;
@@ -207,14 +210,14 @@ void icm_Abst::gradientDescent_step(){
         }
 
         if(new_llk < llk_0){
-            failedGA_counts++;
+            failedGA_counts[s]++;
             baseCH[s] = backupCH[s];
             new_llk = sum_llk(s); //Should NOT be llk_from_p(), since we are resetting the CH
 		    continue;
         }
 
         if(org_llk > new_llk){
-		    failedGA_counts++;
+		    failedGA_counts[s]++;
 		    baseCH[s] = backupCH[s];
 		    new_llk = sum_llk(s);
 	    }

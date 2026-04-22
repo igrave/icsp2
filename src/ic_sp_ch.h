@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <vector>
 #include <cmath>
+#include <omp.h>
 #include <RcppEigen.h>
 using namespace Rcpp;
 using namespace Eigen;
@@ -172,7 +173,7 @@ public:
     std::vector<std::vector<bool>> usedVec;
     
     double almost_inf;
-    int failedGA_counts;
+    std::vector<int>  failedGA_counts;
     int iter;
     int numBaselineIts;
     bool useFullHess;
