@@ -184,12 +184,16 @@ public:
     std::vector<int> exchangeIndices;
     
     void checkCH(int s);
+
+    virtual icm_Abst* clone() const = 0;
     
     void last_p_update();
     void vem();
     void exchange_p_opt(int i1, int i2);
     void vem_sweep();
     void vem_sweep2();
+
+    void profile_llk_search(double target_llk, int cov_i, int direction);
 };
 
 void setup_icm(SEXP Rlind, SEXP Rrind, SEXP RCovars, SEXP R_w, SEXP R_strata, icm_Abst* icm_obj);
@@ -396,6 +400,7 @@ public:
         }
     }
 
+    icm_Abst* clone() const override { return new icm_ph(*this); }
     virtual ~icm_ph(){};
 };
 
@@ -653,6 +658,7 @@ public:
         return eta + log(s1 - s2) - log(D1) - log(D2);
     }
 
+    icm_Abst* clone() const override { return new icm_po(*this); }
     virtual ~icm_po(){};
 };
 

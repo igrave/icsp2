@@ -771,6 +771,21 @@ SEXP ic_sp_ch(SEXP Rlind, SEXP Rrind, SEXP Rcovars, SEXP fitType,
         throw Rcpp::exception("Final log-likelihood is -Inf.");
     }
     
+    // eventually we need a profile likelihood control variable here
+    if (true) {
+        double target_llk = llk_new - 1.92;
+        // matrix of profile likelihood values for each parameter and direction (neg, pos)
+        std::vector<std::vector<double>> prof_ci_mat(optObj->reg_par.size(), std::vector<double>(2, R_NegInf));
+        for (int i = 0; i < optObj->reg_par.size(); i++) {
+            for (int dir = 0; dir < 2; dir++) {
+                icm_Abst* profObj = optObj->clone();
+                profObj->profile_llk_search(target_llk, i, dir);
+                prof_ci_mat[i][dir] = profObj->reg_par[i];
+                delete profObj;
+            }
+        }
+    }
+
     std::vector<std::vector<double>> p_hat; 
     p_hat.resize(optObj->n_strata);
     optObj->recenterBCH();
