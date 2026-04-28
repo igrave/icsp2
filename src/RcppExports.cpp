@@ -104,6 +104,16 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// omp_threads_available
+int omp_threads_available();
+RcppExport SEXP _icsp2_omp_threads_available() {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    rcpp_result_gen = Rcpp::wrap(omp_threads_available());
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_icsp2_pava", (DL_FUNC) &_icsp2_pava, 3},
@@ -112,6 +122,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_icsp2_fast_logrank", (DL_FUNC) &_icsp2_fast_logrank, 3},
     {"_icsp2_ic_sp_ch", (DL_FUNC) &_icsp2_ic_sp_ch, 15},
     {"_icsp2_findMI", (DL_FUNC) &_icsp2_findMI, 5},
+    {"_icsp2_omp_threads_available", (DL_FUNC) &_icsp2_omp_threads_available, 0},
     {NULL, NULL, 0}
 };
 

@@ -61,7 +61,6 @@ public:
     // Does not update eta or hazards!
     double sum_llk(int s);    // calculates likelihood for a single stratum
 
-
     double par_llk(int s, int ind);     //done, not checked
     // only calculates partial likelihood based on an active index
     
@@ -141,6 +140,7 @@ public:
     std::vector<std::vector<double>> base_p_2ndDerv;
     std::vector<std::vector<double>> prop_p;
     double llk_from_p(int s);
+    double sum_llk_from_S(int s);
     double numeric_p_der(int i);
     
     double dervConS_fromBaseS(double s, double eta);

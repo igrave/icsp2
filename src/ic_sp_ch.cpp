@@ -368,9 +368,9 @@ void icm_Abst::analytical_dobs_dch(int s, std::vector<double> &d1, std::vector<d
 
 
 void icm_Abst::icm_step(){
-#ifdef _OPENMP
-#pragma omp parallel for schedule(dynamic)
-#endif
+//#ifdef _OPENMP
+//#pragma omp parallel for schedule(dynamic)
+//#endif
     for(int s = 0; s < n_strata; s++){
         icm_step_s(s);
     }
@@ -754,6 +754,7 @@ SEXP ic_sp_ch(SEXP Rlind, SEXP Rrind, SEXP Rcovars, SEXP fitType,
             int baselineUpdates = INTEGER(R_baselineUpdates)[0];
     
             llk_new = optObj->run(maxIter, tol, useGD, baselineUpdates);
+            optObj->calcFinalRegContr(optObj->reg_d2, optObj->reg_d1, optObj->reg_d3);
             if (llk_new == R_NegInf) {
                 throw std::runtime_error("Log-likelihood is -Inf after optimization.");
             }
@@ -926,10 +927,6 @@ double icm_Abst::run(int maxIter, double tol, bool useGD, int baselineUpdates){
            Rprintf("warning: likelihood decreased! difference = %f\n", llk_new - llk_old);
        }
     }
-    
-    // Update final derivatives for return to R
-    calcFinalRegContr(reg_d2, reg_d1, reg_d3);
-    
     return(llk_new);
 }
 
@@ -995,4 +992,14 @@ SEXP findMI(SEXP R_AllVals, SEXP isL, SEXP isR, SEXP lVals, SEXP rVals){
     SET_VECTOR_ELT(ans, 3, Rr_mi);
     UNPROTECT(5);
     return(ans);
+}
+
+
+// [[Rcpp::export]]
+int omp_threads_available() {
+#ifdef _OPENMP
+    return omp_get_max_threads();
+#else
+    return 1;
+#endif
 }

@@ -25,3 +25,7 @@ findMI <- function(R_AllVals, isL, isR, lVals, rVals) {
     .Call(`_icsp2_findMI`, R_AllVals, isL, isR, lVals, rVals)
 }
 
+omp_threads_available <- function() {
+    .Call(`_icsp2_omp_threads_available`)
+}
+

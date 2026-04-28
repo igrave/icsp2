@@ -26,7 +26,6 @@ static double profile_target_wrapper(double try_cov, void* info) {
     pi->obj->reg_par[pi->cov_i] = try_cov;
     pi->obj->profile_cov_idx = pi->cov_i;
     pi->obj->updateCovars = true;
-    pi->obj->update_etas();
     double new_llk = pi->obj->run(50, 1e-10, true, 5);
     return new_llk - pi->target_llk;
 }
@@ -37,16 +36,18 @@ void icm_Abst::profile_llk_search(double target_llk, double ref_llk, int cov_i, 
         Rprintf("warning: non-negative Hessian diagonal for covariate %d\n", cov_i);
         return;
     }
-
-    double ax = reg_par[cov_i];  // MLE — f(ax) should be ~+1.92
-    double step = 2.3 / sqrt(diag) * (direction == 0 ? -1.0 : 1.0);
+    double fa = ref_llk - target_llk;
+    double ax = reg_par[cov_i];
+    double step = 1.1 * 2 * fa / sqrt(diag) * (direction == 0 ? -1.0 : 1.0);
     double bx = ax + step;
 
     ProfileInfo info = { this, cov_i, target_llk };
 
-    double fa = ref_llk - target_llk;
-    double fb = profile_target_wrapper(bx, &info);  // should be < 0 (past boundary)
-
+    double fb = 1;
+    while (fb >= 0) {
+      fb = profile_target_wrapper(bx, &info);  // should be < 0 (past boundary)
+      if (fb >= 0) bx += 0.5/sqrt(diag);
+    }
     double tol = 1e-6;
     int maxit = 50;
 
