@@ -17,8 +17,8 @@ fast_logrank <- function(time, event, group) {
     .Call(`_icsp2_fast_logrank`, time, event, group)
 }
 
-ic_sp_ch <- function(Rlind, Rrind, Rcovars, fitType, R_w, R_strata, R_use_GD, R_maxiter, R_baselineUpdates, R_useFullHess, R_updateCovars, R_initialRegVals, R_derivMethod, R_baselineStart) {
-    .Call(`_icsp2_ic_sp_ch`, Rlind, Rrind, Rcovars, fitType, R_w, R_strata, R_use_GD, R_maxiter, R_baselineUpdates, R_useFullHess, R_updateCovars, R_initialRegVals, R_derivMethod, R_baselineStart)
+ic_sp_ch <- function(Rlind, Rrind, Rcovars, fitType, R_w, R_strata, R_use_GD, R_maxiter, R_baselineUpdates, R_useFullHess, R_updateCovars, R_initialRegVals, R_derivMethod, R_baselineStart, R_profileCI_diff) {
+    .Call(`_icsp2_ic_sp_ch`, Rlind, Rrind, Rcovars, fitType, R_w, R_strata, R_use_GD, R_maxiter, R_baselineUpdates, R_useFullHess, R_updateCovars, R_initialRegVals, R_derivMethod, R_baselineStart, R_profileCI_diff)
 }
 
 findMI <- function(R_AllVals, isL, isR, lVals, rVals) {
