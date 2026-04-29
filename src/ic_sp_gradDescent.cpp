@@ -103,11 +103,10 @@ double icm_Abst::getMaxScaleSize(const std::vector<double> &p, const std::vector
 
 
 void icm_Abst::gradientDescent_step(){
-    
 	if(std::accumulate(failedGA_counts.begin(), failedGA_counts.end(), 0) > 500){return;}
 	
 #ifdef _OPENMP
-#pragma omp parallel for schedule(dynamic)
+//#pragma omp parallel for schedule(dynamic)
 #endif
     for(int s = 0; s < n_strata; s++){
         backupCH[s] = baseCH[s];
@@ -174,7 +173,6 @@ void icm_Abst::gradientDescent_step(){
         if(delta_val == 0){
             failedGA_counts[s]++;
             baseCH[s] = backupCH[s];
-            new_llk = sum_llk(s);
             continue; // continue with the next stratum
         }
 
@@ -193,7 +191,6 @@ void icm_Abst::gradientDescent_step(){
         if(!R_FINITE(d2) || std::abs(d2) <= 1e-8) {
             failedGA_counts[s]++;
             baseCH[s] = backupCH[s];
-            new_llk = sum_llk(s);
             continue;
         }
 
@@ -202,7 +199,6 @@ void icm_Abst::gradientDescent_step(){
         if(!(R_FINITE(delta_val) && delta_val > 0.0)){
             failedGA_counts[s]++;
             baseCH[s] = backupCH[s];
-            new_llk = sum_llk(s);
             continue;
         }
 
@@ -216,25 +212,25 @@ void icm_Abst::gradientDescent_step(){
     
         double this_delta = delta_val;
     
-        while(tries < 5 && new_llk  < llk_0){
+        while(tries < 5 && new_llk < llk_0){
             tries++;
             this_delta = this_delta/2;
             add_vec(this_delta, prop_p[s], baseP[s]);
             new_llk = llk_from_p(s);
         }
-
         if(new_llk < llk_0){
             failedGA_counts[s]++;
             baseCH[s] = backupCH[s];
-            new_llk = sum_llk(s); //Should NOT be llk_from_p(), since we are resetting the CH
 		    continue;
         }
 
         if(org_llk > new_llk){
 		    failedGA_counts[s]++;
 		    baseCH[s] = backupCH[s];
-		    new_llk = sum_llk(s);
-	    }
+	    } else {
+            baseP_2_baseS(s); 
+            baseS_2_baseCH(s); 
+        }
     } // end of loop over strata, s
 }
 
