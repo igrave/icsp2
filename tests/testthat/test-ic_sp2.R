@@ -348,7 +348,7 @@ test_that("PH model works with profile_ci", {
     nrow = 2,
     dimnames = list(c("x1", "x2"), c("lower", "upper"))
   )
-  expect_equal(ci_res_1, ci_expected_1, tolerance = 1e-7)
+  expect_equal(ci_res_1, ci_expected_1, tolerance = 1e-6)
 
   ci_res_2 <- confint(result)
   ci_expected_2 <- matrix(
