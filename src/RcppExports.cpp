@@ -11,32 +11,6 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// pava
-SEXP pava(SEXP R_d1, SEXP R_d2, SEXP R_x);
-RcppExport SEXP _icsp2_pava(SEXP R_d1SEXP, SEXP R_d2SEXP, SEXP R_xSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type R_d1(R_d1SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type R_d2(R_d2SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type R_x(R_xSEXP);
-    rcpp_result_gen = Rcpp::wrap(pava(R_d1, R_d2, R_x));
-    return rcpp_result_gen;
-END_RCPP
-}
-// fastNumericInsert_cpp
-SEXP fastNumericInsert_cpp(SEXP newVals, SEXP target, SEXP indices);
-RcppExport SEXP _icsp2_fastNumericInsert_cpp(SEXP newValsSEXP, SEXP targetSEXP, SEXP indicesSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type newVals(newValsSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type target(targetSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type indices(indicesSEXP);
-    rcpp_result_gen = Rcpp::wrap(fastNumericInsert_cpp(newVals, target, indices));
-    return rcpp_result_gen;
-END_RCPP
-}
 // hly_sample
 List hly_sample(NumericMatrix S_ij, NumericVector left_times, IntegerVector group_var_s, int H);
 RcppExport SEXP _icsp2_hly_sample(SEXP S_ijSEXP, SEXP left_timesSEXP, SEXP group_var_sSEXP, SEXP HSEXP) {
@@ -106,8 +80,6 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_icsp2_pava", (DL_FUNC) &_icsp2_pava, 3},
-    {"_icsp2_fastNumericInsert_cpp", (DL_FUNC) &_icsp2_fastNumericInsert_cpp, 3},
     {"_icsp2_hly_sample", (DL_FUNC) &_icsp2_hly_sample, 4},
     {"_icsp2_fast_logrank", (DL_FUNC) &_icsp2_fast_logrank, 3},
     {"_icsp2_ic_sp_ch", (DL_FUNC) &_icsp2_ic_sp_ch, 15},
