@@ -10,3 +10,5 @@
   reference classes)
 - Implement logrank type tests
 - Add tests
+- Fixes to C++ for edge cases and numerical stability
+- Some performance optimisations

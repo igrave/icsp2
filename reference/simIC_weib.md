@@ -96,8 +96,8 @@ ic_sp_ph(Surv(l, u, type = 'interval2') ~ x1 + x2, data = sim_data)
 #>     data = sim_data)
 #> 
 #> Coefficients:
-#>          x1          x2 
-#>  0.04103429 -0.35065942 
+#>         x1         x2 
+#>  0.0410343 -0.3506595 
 #> 
 #> Log-likelihood: -753.3359
 #> Number of iterations: 9
@@ -108,7 +108,7 @@ ic_sp_po(Surv(l, u, type = 'interval2') ~ x1 + x2, data = sim_data)
 #> 
 #> Coefficients:
 #>          x1          x2 
-#> -0.08955382  0.47309560 
+#> -0.08955382  0.47309568 
 #> 
 #> Log-likelihood: -759.4884
 #> Number of iterations: 8

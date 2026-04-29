@@ -52,6 +52,7 @@
 <span>  B <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">1</span><span class="op">)</span>,</span>
 <span>  control <span class="op">=</span> <span class="fu"><a href="ic_sp_control.html">ic_sp_control</a></span><span class="op">(</span><span class="va">...</span><span class="op">)</span>,</span>
 <span>  model <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"ph"</span>, <span class="st">"po"</span><span class="op">)</span>,</span>
+<span>  profile_ci <span class="op">=</span> <span class="fl">0</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span>
 <span></span>
@@ -64,6 +65,7 @@
 <span>  B <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">1</span><span class="op">)</span>,</span>
 <span>  control <span class="op">=</span> <span class="fu"><a href="ic_sp_control.html">ic_sp_control</a></span><span class="op">(</span><span class="va">...</span><span class="op">)</span>,</span>
 <span>  model <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"ph"</span>, <span class="st">"po"</span><span class="op">)</span>,</span>
+<span>  profile_ci <span class="op">=</span> <span class="fl">0</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span>
 <span></span>
@@ -76,6 +78,7 @@
 <span>  B <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">1</span><span class="op">)</span>,</span>
 <span>  control <span class="op">=</span> <span class="fu"><a href="ic_sp_control.html">ic_sp_control</a></span><span class="op">(</span><span class="va">...</span><span class="op">)</span>,</span>
 <span>  model <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"ph"</span>, <span class="st">"po"</span><span class="op">)</span>,</span>
+<span>  profile_ci <span class="op">=</span> <span class="fl">0</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -115,6 +118,10 @@
 <dt id="arg-model">model<a class="anchor" aria-label="anchor" href="#arg-model"></a></dt>
 <dd><p>Type of model to fit. Choices are <code>"ph"</code> for proportional hazards and <code>"po"</code> for proportional odds. Default is <code>"ph"</code>.
 This is normally determined by the function aliases <code>ic_sp_ph</code> and <code>ic_sp_po</code>.</p></dd>
+
+
+<dt id="arg-profile-ci">profile_ci<a class="anchor" aria-label="anchor" href="#arg-profile-ci"></a></dt>
+<dd><p>Confidence level for profile likelihood confidence intervals. Default is 0.95. Set to <code>NULL</code> to skip profile likelihood confidence interval calculations.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>

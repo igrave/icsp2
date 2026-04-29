@@ -14,6 +14,7 @@ ic_sp2(
   B = c(0, 1),
   control = ic_sp_control(...),
   model = c("ph", "po"),
+  profile_ci = 0,
   ...
 )
 
@@ -26,6 +27,7 @@ ic_sp_ph(
   B = c(0, 1),
   control = ic_sp_control(...),
   model = c("ph", "po"),
+  profile_ci = 0,
   ...
 )
 
@@ -38,6 +40,7 @@ ic_sp_po(
   B = c(0, 1),
   control = ic_sp_control(...),
   model = c("ph", "po"),
+  profile_ci = 0,
   ...
 )
 ```
@@ -84,6 +87,12 @@ ic_sp_po(
   Type of model to fit. Choices are `"ph"` for proportional hazards and
   `"po"` for proportional odds. Default is `"ph"`. This is normally
   determined by the function aliases `ic_sp_ph` and `ic_sp_po`.
+
+- profile_ci:
+
+  Confidence level for profile likelihood confidence intervals. Default
+  is 0.95. Set to `NULL` to skip profile likelihood confidence interval
+  calculations.
 
 - ...:
 
