@@ -6,3 +6,5 @@
 * Re-implement R code for model fitting and class implementation (S3 vs reference classes)
 * Implement logrank type tests
 * Add tests
+* Fixes to C++ for edge cases and numerical stability
+* Some performance optimisations

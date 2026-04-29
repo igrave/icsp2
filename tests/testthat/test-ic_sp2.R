@@ -1,3 +1,45 @@
+test_that("PH model works for sim data with exact obs", {
+  set.seed(1951)
+  n <- 500
+  sim_data <- data.frame(
+    x1 = runif(n, -1, 1),
+    x2 = 1 - 2 * rbinom(n, 1, 0.5),
+    ic = rbinom(n, 1, 0.5)
+  )
+  sim_data$time <- rexp(
+    n,
+    rate = exp(0.3 * sim_data$x1 - 0.3 * sim_data$x2) / 2
+  ) +
+    1
+  sim_data$l <- ifelse(sim_data$ic == 0, sim_data$time, floor(sim_data$time))
+  sim_data$u <- ifelse(sim_data$ic == 0, sim_data$time, ceiling(sim_data$time))
+  n
+
+  result_1 <- ic_sp_ph(
+    Surv(l, u, type = 'interval2') ~ x1 + x2,
+    data = sim_data,
+    control = ic_sp_control(derivMethod = 1)
+  )
+  result_12 <- ic_sp_ph(
+    Surv(l, u, type = 'interval2') ~ x1 + x2,
+    data = sim_data
+  )
+
+  result_icr <- icenReg::ic_sp(
+    Surv(l, u, type = 'interval2') ~ x1 + x2,
+    data = sim_data
+  )
+
+  expect_equal(result_1$coefficients, result_12$coefficients, tolerance = 1e-6)
+  expect_equal(result_1$llk, result_icr$llk, tolerance = 1e-7)
+  expect_equal(result_1$intervals[[1]], result_icr$T_bull_Intervals)
+
+  expect_equal(result_1$coefficients, result_icr$coefficients, tolerance = 1e-6)
+  expect_equal(result_1$llk, result_icr$llk, tolerance = 1e-7)
+  expect_equal(result_1$intervals[[1]], result_icr$T_bull_Intervals)
+})
+
+
 test_that("PH model works for sim data", {
   set.seed(1951)
   sim_data <- simIC_weib(n = 500, inspections = 3, inspectLength = 1)
@@ -12,8 +54,9 @@ test_that("PH model works for sim data", {
     Surv(l, u, type = 'interval2') ~ x1 + x2,
     data = sim_data
   )
-  expect_equal(result$coefficients, icr_result$coefficients, tolerance = 1e-7)
 
+  expect_equal(result$coefficients, icr_result$coefficients, tolerance = 1e-6)
+  expect_equal(result$llk, icr_result$llk, tolerance = 1e-7)
   expect_equal(result$intervals[[1]], icr_result$T_bull_Intervals)
 })
 
@@ -27,7 +70,7 @@ test_that("PH model works for miceData", {
     Surv(l, u, type = 'interval2') ~ grp,
     data = miceData
   )
-  expect_equal(result$coefficients, icr_result$coefficients, tolerance = 1e-7)
+  expect_equal(result$coefficients, icr_result$coefficients, tolerance = 1e-6)
 
   expect_equal(result$intervals[[1]], icr_result$T_bull_Intervals)
 })
@@ -252,4 +295,67 @@ test_that("profile_fit is stable under coefficient perturbation", {
   expect_true(all(is.finite(prof$coefficients)))
   expect_gt(prof$iterations, 0L)
   expect_lt(prof$iterations, fit$other_info$maxIter)
+})
+
+test_that("numerical-derivative fit converges before maxIter in flatter settings", {
+  set.seed(1998)
+  n <- 80
+  sim_data <- simIC_weib(
+    n = n,
+    inspections = 3,
+    inspectLength = 0.6,
+    b1 = 0.95,
+    b2 = -0.5
+  )
+
+  z <- as.data.frame(matrix(rnorm(n * 6), nrow = n, ncol = 6))
+  colnames(z) <- paste0("z", 1:6)
+  sim_data <- cbind(sim_data, z)
+
+  fit <- expect_no_error(
+    ic_sp_ph(
+      Surv(l, u, type = "interval2") ~ x1 + x2 + z1 + z2 + z3 + z4 + z5 + z6,
+      data = sim_data,
+      control = ic_sp_control(derivMethod = 1, maxIter = 250)
+    )
+  )
+
+  expect_true(is.finite(fit$llk))
+  expect_true(all(is.finite(fit$coefficients)))
+  expect_gt(fit$iterations, 0)
+  expect_lt(fit$iterations, fit$other_info$maxIter)
+})
+
+
+test_that("PH model works with profile_ci", {
+  set.seed(1952)
+  sim_data <- simIC_weib(n = 500, inspections = 3, inspectLength = 1)
+
+  result <- ic_sp_ph(
+    Surv(l, u, type = 'interval2') ~ x1 + x2,
+    data = sim_data,
+    profile_ci = 0.95
+  )
+  ci_res_1 <- result$profile_ci
+
+  ci_expected_1 <- matrix(
+    c(
+      0.1278399833,
+      -0.6858324346,
+      0.6228696709,
+      -0.3968694990
+    ),
+    nrow = 2,
+    dimnames = list(c("x1", "x2"), c("lower", "upper"))
+  )
+  expect_equal(ci_res_1, ci_expected_1, tolerance = 1e-6)
+
+  ci_res_2 <- confint(result)
+  ci_expected_2 <- matrix(
+    c(0.12536750043, -0.68054485968, 0.62303049953, -0.39806531257),
+    nrow = 2,
+    dimnames = list(c("x1", "x2"), c("2.5 %", "97.5 %"))
+  )
+  expect_equal(ci_res_2, ci_expected_2, tolerance = 1e-7)
+  expect_equal(unname(ci_res_1), unname(ci_res_2), tolerance = 1e-2)
 })

@@ -19,6 +19,6 @@ support for stratified baseline hazards and analytical derivatives.
 We also implement a profile likelihood variance estimation procedure for the
 regression coefficients.
 
-The logrank test is our own and aims to replace a 
+The logrank test is a new implementation and aims to replace a 
 [PROC ICLIFETEST](https://documentation.sas.com/doc/en/statug/latest/statug_iclifetest_overview.htm)
 test using Sun type weights and imputed variance.

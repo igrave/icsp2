@@ -51,6 +51,7 @@ ic_sp_control <- function(
 #'   This is normally determined by the function aliases `ic_sp_ph` and `ic_sp_po`.
 #' @param B A vector of length 2 giving the lower and upper bounds for the observation times. Default is c(0, 1).
 #' @param control A list of control settings, with defaults created by [ic_sp_control()].
+#' @param profile_ci Confidence level for profile likelihood confidence intervals. Default is 0.95. Set to `NULL` to skip profile likelihood confidence interval calculations.
 #' @param ... Additional arguments passed to control.
 #'
 #' @return A list containing the fitted model information, including coefficients, variance-covariance matrix, and other details.
@@ -64,6 +65,7 @@ ic_sp2 <- function(
   B = c(0, 1),
   control = ic_sp_control(...),
   model = c("ph", "po"),
+  profile_ci = 0,
   ...
 ) {
   # Information about orginal call to function. Useful for expanding X in predict(fit, newdata)
@@ -125,6 +127,12 @@ ic_sp2 <- function(
     match.arg(model, c("ph", "po"), several.ok = FALSE)
   }
 
+  if (is.null(profile_ci)) {
+    profile_ci <- 0
+  } else if (profile_ci < 0 || profile_ci > 1) {
+    stop("profile_ci must be between 0 and 1.")
+  }
+
   weights <- check_weights(mf)
 
   if (!is.null(control$regStart)) {
@@ -150,7 +158,8 @@ ic_sp2 <- function(
     updateCovars = control$updateCovars,
     recenterCovars = (ncol(x) > 0),
     regStart = regStart,
-    derivMethod = control$derivMethod
+    derivMethod = control$derivMethod,
+    profile_ci = profile_ci
   )
 
   # Recentering covariates
@@ -178,6 +187,7 @@ ic_sp2 <- function(
   covar <- NULL
 
   names(result$coefficients) <- x_names
+  dimnames(result$profile_ci) <- list(x_names, c("lower", "upper"))
   result$covarOffset <- matrix(covarOffset, nrow = 1)
   result$var <- covar
   result$call <- call
@@ -229,7 +239,9 @@ ic_sp_po <- ic_sp2
   strata,
   model_type,
   other_info,
-  baseline_start = NULL
+  baseline_start = NULL,
+  covars_list = NULL,
+  mi_info = NULL
 ) {
   if (any(y[, 1] > y[, 2])) {
     stop(
@@ -243,14 +255,33 @@ ic_sp_po <- ic_sp2
   updateCovars <- other_info$updateCovars
   regStart <- other_info$regStart
   derivMethod <- other_info$derivMethod
+  profileCI_diff <- if (!is.null(other_info$profile_ci)) {
+    qchisq(other_info$profile_ci, df = 1) / 2
+  } else {
+    0
+  }
 
-  mi_info <- by(y, strata, function(y_s) {
-    find_maximal_intersections(y_s[, 1], y_s[, 2])
-  })
+  if (is.null(mi_info)) {
+    mi_info <- by(y, strata, function(y_s) {
+      find_maximal_intersections(y_s[, 1], y_s[, 2])
+    })
+  } else {
+    if (!is.list(mi_info) || length(mi_info) != nlevels(strata)) {
+      stop("mi_info must be a list of length equal to the number of strata.")
+    }
+  }
 
-  covars_list <- lapply(split(seq_len(nrow(y)), strata), function(i) {
-    x[i, , drop = FALSE]
-  })
+  if (!is.null(covars_list)) {
+    if (!is.list(covars_list) || length(covars_list) != nlevels(strata)) {
+      stop(
+        "covars_list must be a list of length equal to the number of strata."
+      )
+    }
+  } else {
+    covars_list <- lapply(split(seq_len(nrow(y)), strata), function(i) {
+      x[i, , drop = FALSE]
+    })
+  }
 
   weights <- split(as.numeric(weights), strata)
 
@@ -278,7 +309,8 @@ ic_sp_po <- ic_sp2
     as.logical(updateCovars),
     as.double(regStart),
     as.integer(derivMethod),
-    baseline_start
+    baseline_start,
+    profileCI_diff
   )
   names(c_ans) <- c(
     'p_hat',
@@ -288,7 +320,8 @@ ic_sp_po <- ic_sp2
     'score',
     'hessian',
     'd3',
-    'subj_llk'
+    'subj_llk',
+    'profile_ci'
   )
   result <- list()
   result$p_hat <- lapply(c_ans$p_hat, function(p) p / sum(p))
@@ -303,6 +336,9 @@ ic_sp_po <- ic_sp2
   result[["intervals"]] <- lapply(mi_info, function(mi) {
     rbind(mi[["mi_l"]], mi[["mi_r"]])
   })
+  result$mi_info <- mi_info
+  result$covars_list <- covars_list
+  result$profile_ci <- c_ans$profile_ci
 
   return(result)
 }
@@ -469,10 +505,13 @@ profile_fit <- function(object, beta = object$coefficients) {
     model_type = paste0("ic_", object$model),
     weights = object$.dataEnv$weights,
     strata = object$.dataEnv$strata,
-    baseline_start = object$s
+    baseline_start = object$s,
+    covars_list = object$covars_list,
+    mi_info = object$mi_info
   )
   call_args$other_info$updateCovars <- FALSE
   call_args$other_info$regStart <- beta
+  call_args$other_info$profile_ci <- 0
   new_fit <- do.call(.fit_ic_sp, call_args)
   return(new_fit)
 }
