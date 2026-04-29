@@ -235,19 +235,6 @@ void icm_Abst::gradientDescent_step(){
 }
 
 
-
-
-double icm_Abst::cal_log_obs(double s1, double s2, double eta){
-    double l = baseS2CondS(s1, eta);
-    double r = baseS2CondS(s2, eta);
-    if (l - r <= 0){
-       return(R_NegInf);
-    }
-    return(log(l - r) );
-}
-
-
-
 void icm_Abst::numeric_dobs_dp(int s, bool forGA){    
     int p_k = baseS[s].size();
     int k = p_k - 1;

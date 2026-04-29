@@ -168,7 +168,7 @@ public:
     void numeric_dobs_dp(int s, bool forGA);
     //void numeric_dobs2_d2p();
     
-    virtual double cal_log_obs(double s1, double s2, double eta);
+    virtual double cal_log_obs(double s1, double s2, double eta) = 0;
     
     
     std::vector<std::vector<bool>> usedVec;

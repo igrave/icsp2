@@ -12,6 +12,7 @@ test_that("cpp_logrank matches survdiff for 2 groups", {
   expect_equal(res$expected, sd_res$exp, tolerance = 1e-10)
   expect_equal(res$variance, sd_res$var, tolerance = 1e-10, ignore_attr = TRUE)
   expect_equal(res$n_by_group, sd_res$n, tolerance = 1e-10, ignore_attr = TRUE)
+  expect_snapshot(print(res))
 })
 
 test_that("cpp_logrank matches survdiff for 3 groups", {
@@ -28,6 +29,7 @@ test_that("cpp_logrank matches survdiff for 3 groups", {
   expect_equal(res$expected, sd_res$exp, tolerance = 1e-10)
   expect_equal(res$variance, sd_res$var, tolerance = 1e-10, ignore_attr = TRUE)
   expect_equal(res$n_by_group, sd_res$n, tolerance = 1e-10, ignore_attr = TRUE)
+  expect_snapshot(print(res))
 })
 
 test_that("cpp_logrank matches survdiff with heavy ties", {
