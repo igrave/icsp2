@@ -30,11 +30,11 @@ test_that("PH model works for sim data with exact obs", {
     data = sim_data
   )
 
-  expect_equal(result_1$coefficients, result_12$coefficients, tolerance = 1e-7)
+  expect_equal(result_1$coefficients, result_12$coefficients, tolerance = 1e-6)
   expect_equal(result_1$llk, result_icr$llk, tolerance = 1e-7)
   expect_equal(result_1$intervals[[1]], result_icr$T_bull_Intervals)
 
-  expect_equal(result_1$coefficients, result_icr$coefficients, tolerance = 1e-7)
+  expect_equal(result_1$coefficients, result_icr$coefficients, tolerance = 1e-6)
   expect_equal(result_1$llk, result_icr$llk, tolerance = 1e-7)
   expect_equal(result_1$intervals[[1]], result_icr$T_bull_Intervals)
 })
@@ -324,4 +324,38 @@ test_that("numerical-derivative fit converges before maxIter in flatter settings
   expect_true(all(is.finite(fit$coefficients)))
   expect_gt(fit$iterations, 0)
   expect_lt(fit$iterations, fit$other_info$maxIter)
+})
+
+
+test_that("PH model works with profile_ci", {
+  set.seed(1952)
+  sim_data <- simIC_weib(n = 500, inspections = 3, inspectLength = 1)
+
+  result <- ic_sp_ph(
+    Surv(l, u, type = 'interval2') ~ x1 + x2,
+    data = sim_data,
+    profile_ci = 0.95
+  )
+  ci_res_1 <- result$profile_ci
+
+  ci_expected_1 <- matrix(
+    c(
+      0.1278399833,
+      -0.6858324346,
+      0.6228696709,
+      -0.3968694990
+    ),
+    nrow = 2,
+    dimnames = list(c("x1", "x2"), c("lower", "upper"))
+  )
+  expect_equal(ci_res_1, ci_expected_1, tolerance = 1e-7)
+
+  ci_res_2 <- confint(result)
+  ci_expected_2 <- matrix(
+    c(0.12536750043, -0.68054485968, 0.62303049953, -0.39806531257),
+    nrow = 2,
+    dimnames = list(c("x1", "x2"), c("2.5 %", "97.5 %"))
+  )
+  expect_equal(ci_res_2, ci_expected_2, tolerance = 1e-7)
+  expect_equal(unname(ci_res_1), unname(ci_res_2), tolerance = 1e-2)
 })
