@@ -466,17 +466,6 @@ void icm_Abst::icm_step_s(int s){
     if(llk_new < llk_st){
         baseCH[s] = backupCH[s];
         llk_new = sum_llk(s);
-        
-        int numNAs = 0;
-        double sumAbsProp = 0;
-        for(int i = 0; i < thisSize; i++){
-            if(ISNAN(prop[i])){
-                numNAs++;
-            }
-            else{
-                sumAbsProp += abs(prop[i]);
-            }
-        }
         mult_vec(0, prop);
     }
     maxBaseChg = 0;
@@ -512,7 +501,7 @@ void icm_Abst::calcAnalyticRegDervs(Eigen::MatrixXd &hess, Eigen::VectorXd &d1){
 
 
         int lind, rind;
-        double l_ch, r_ch, eta, pob, log_p;
+        double l_ch, r_ch, eta, log_p;
         for(int i = 0; i < n; i++){
             l_cont[i]  = 0;
             r_cont[i]  = 0;
@@ -521,7 +510,6 @@ void icm_Abst::calcAnalyticRegDervs(Eigen::MatrixXd &hess, Eigen::VectorXd &d1){
 
             lind = obs_inf[s][i].l;
             rind = obs_inf[s][i].r;
-            pob  = obs_inf[s][i].pob;
             log_p = obs_inf[s][i].log_pob;
             l_ch = baseCH[s][lind];
             r_ch = baseCH[s][rind + 1];
@@ -594,7 +582,7 @@ void icm_Abst::calcFinalRegContr(Eigen::MatrixXd &hess, Eigen::VectorXd &d1, Eig
         Eigen::VectorXd totCont3(n);
 
         int lind, rind;
-        double l_ch, r_ch, eta, pob, log_p;
+        double l_ch, r_ch, eta, log_p;
         for(int i = 0; i < n; i++){
             l_cont[i]  = 0;
             r_cont[i]  = 0;
@@ -605,7 +593,6 @@ void icm_Abst::calcFinalRegContr(Eigen::MatrixXd &hess, Eigen::VectorXd &d1, Eig
 
             lind = obs_inf[s][i].l;
             rind = obs_inf[s][i].r;
-            pob  = obs_inf[s][i].pob;
             log_p = obs_inf[s][i].log_pob;
             l_ch = baseCH[s][lind];
             r_ch = baseCH[s][rind + 1];
@@ -673,6 +660,17 @@ void icm_Abst::covar_nr_step(){
         if(ISNAN(reg_d1[i]) ){reg_d1[i] = 0;}
     }       */
     
+    // Zero out the profiled parameter's contributions so it stays fixed
+    if (profile_cov_idx >= 0) {
+        int pi = profile_cov_idx;
+        reg_d1[pi] = 0.0;
+        for (int j = 0; j < k; j++) {
+            reg_d2(pi, j) = 0.0;
+            reg_d2(j, pi) = 0.0;
+        }
+        reg_d2(pi, pi) = -1.0;  // non-singular placeholder
+    }
+
     propVec.resize(k);
     if(useFullHess){
       propVec = -reg_d2.fullPivLu().solve(reg_d1);
@@ -710,7 +708,8 @@ SEXP ic_sp_ch(SEXP Rlind, SEXP Rrind, SEXP Rcovars, SEXP fitType,
               SEXP R_w, SEXP R_strata, SEXP R_use_GD, SEXP R_maxiter,
               SEXP R_baselineUpdates, SEXP R_useFullHess, SEXP R_updateCovars,
               SEXP R_initialRegVals, SEXP R_derivMethod,
-              SEXP R_baselineStart) {
+              SEXP R_baselineStart, SEXP R_profileCI_diff
+            ) {
     icm_Abst* optObj;
     bool useGD = LOGICAL(R_use_GD)[0] == TRUE;
     
@@ -771,6 +770,25 @@ SEXP ic_sp_ch(SEXP Rlind, SEXP Rrind, SEXP Rcovars, SEXP fitType,
         throw Rcpp::exception("Final log-likelihood is -Inf.");
     }
     
+    // Profile likelihood confidence intervals
+    int n_reg = optObj->reg_par.size();
+    std::vector<std::vector<double>> prof_ci_mat(n_reg, std::vector<double>(2, NA_REAL));
+    double profileCI_diff = Rcpp::as<double>(R_profileCI_diff);
+    if (profileCI_diff > 0) {
+        double target_llk = llk_new - profileCI_diff;
+#ifdef _OPENMP
+#pragma omp parallel for schedule(dynamic) collapse(2)
+#endif
+        for (int i = 0; i < n_reg; i++) {
+            for (int dir = 0; dir < 2; dir++) {
+                icm_Abst* profObj = optObj->clone();
+                profObj->profile_llk_search(target_llk, llk_new, i, dir);
+                prof_ci_mat[i][dir] = profObj->reg_par[i];
+                delete profObj;
+            }
+        }
+    }
+
     std::vector<std::vector<double>> p_hat; 
     p_hat.resize(optObj->n_strata);
     optObj->recenterBCH();
@@ -781,7 +799,7 @@ SEXP ic_sp_ch(SEXP Rlind, SEXP Rrind, SEXP Rcovars, SEXP fitType,
     
     
     
-    SEXP ans = PROTECT(Rf_allocVector(VECSXP, 8));
+    SEXP ans = PROTECT(Rf_allocVector(VECSXP, 9));
     SEXP R_pans = PROTECT(Rf_allocVector(VECSXP,p_hat.size()));
     SEXP R_coef = PROTECT(Rf_allocVector(REALSXP, optObj->reg_par.size()));
     SEXP R_fnl_llk = PROTECT(Rf_allocVector(REALSXP, 1));
@@ -790,6 +808,12 @@ SEXP ic_sp_ch(SEXP Rlind, SEXP Rrind, SEXP Rcovars, SEXP fitType,
     SEXP R_hessian = PROTECT(Rf_allocMatrix(REALSXP, optObj->reg_par.size(), optObj->reg_par.size()));
     SEXP R_d3 = PROTECT(Rf_allocVector(REALSXP, optObj->reg_par.size()));
     SEXP R_subj_llk = PROTECT(Rf_allocVector(VECSXP, optObj->n_strata));
+    SEXP R_profile_ci = PROTECT(Rf_allocMatrix(REALSXP, n_reg, 2));
+    // Fill profile CI matrix (n_reg x 2, column-major for R)
+    for (int i = 0; i < n_reg; i++) {
+        REAL(R_profile_ci)[i]         = prof_ci_mat[i][0];  // lower
+        REAL(R_profile_ci)[i + n_reg] = prof_ci_mat[i][1];  // upper
+    }
 
     for (size_t i = 0; i < p_hat.size(); ++i) {
         const std::vector<double>& inner = p_hat[i];
@@ -834,19 +858,11 @@ SEXP ic_sp_ch(SEXP Rlind, SEXP Rrind, SEXP Rcovars, SEXP fitType,
     SET_VECTOR_ELT(ans, 5, R_hessian);
     SET_VECTOR_ELT(ans, 6, R_d3);
     SET_VECTOR_ELT(ans, 7, R_subj_llk);
+    SET_VECTOR_ELT(ans, 8, R_profile_ci);
     
-    UNPROTECT(9);
+    UNPROTECT(10);
 
-    
-    if(INTEGER(fitType)[0] == 1){
-        icm_ph* deleteObj = static_cast<icm_ph*>(optObj);
-        delete deleteObj;
-    }
-    else if(INTEGER(fitType)[0] == 2){
-        icm_po* deleteObj = static_cast<icm_po*>(optObj);
-        delete deleteObj;
-    }
-    
+    delete optObj;
     
     return(ans);
 

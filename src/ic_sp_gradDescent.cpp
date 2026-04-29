@@ -60,11 +60,22 @@ void icm_Abst::baseS_2_baseCH(int s){
 
 double icm_Abst::llk_from_p(int s){
     baseP_2_baseS(s);
-    baseS_2_baseCH(s);
-    double ans = sum_llk(s);
-    return(ans);
+    return sum_llk_from_S(s);
 }
 
+double icm_Abst::sum_llk_from_S(int s) { 
+    int n = obs_inf[s].size(); 
+    double ans = 0; 
+    for (int i = 0; i < n; i++) { 
+        double sl = baseS[s][obs_inf[s][i].l]; 
+        double sr = baseS[s][obs_inf[s][i].r + 1]; 
+        double eta = etas[s][i]; 
+        double log_pob = cal_log_obs(sl, sr, eta); 
+        ans += log_pob * w[s][i]; 
+    } 
+    if (ISNAN(ans)) ans = R_NegInf; 
+    return ans; 
+} 
  
  
 double icm_Abst::getMaxScaleSize(const std::vector<double> &p, const std::vector<double> &prop_p){
@@ -92,17 +103,19 @@ double icm_Abst::getMaxScaleSize(const std::vector<double> &p, const std::vector
 
 
 void icm_Abst::gradientDescent_step(){
-    
 	if(std::accumulate(failedGA_counts.begin(), failedGA_counts.end(), 0) > 500){return;}
 	
 #ifdef _OPENMP
-#pragma omp parallel for schedule(dynamic)
+//#pragma omp parallel for schedule(dynamic)
 #endif
     for(int s = 0; s < n_strata; s++){
-        double org_llk = sum_llk(s);
         backupCH[s] = baseCH[s];
         baseCH_2_baseS(s);
         baseS_2_baseP(s);
+        
+        //double org_llk = sum_llk(s);
+        double org_llk = sum_llk_from_S(s); 
+        
 
         if (derivMethod >= 10) {
             analytical_dobs_dp(s);
@@ -160,7 +173,6 @@ void icm_Abst::gradientDescent_step(){
         if(delta_val == 0){
             failedGA_counts[s]++;
             baseCH[s] = backupCH[s];
-            new_llk = sum_llk(s);
             continue; // continue with the next stratum
         }
 
@@ -179,7 +191,6 @@ void icm_Abst::gradientDescent_step(){
         if(!R_FINITE(d2) || std::abs(d2) <= 1e-8) {
             failedGA_counts[s]++;
             baseCH[s] = backupCH[s];
-            new_llk = sum_llk(s);
             continue;
         }
 
@@ -188,7 +199,6 @@ void icm_Abst::gradientDescent_step(){
         if(!(R_FINITE(delta_val) && delta_val > 0.0)){
             failedGA_counts[s]++;
             baseCH[s] = backupCH[s];
-            new_llk = sum_llk(s);
             continue;
         }
 
@@ -202,25 +212,25 @@ void icm_Abst::gradientDescent_step(){
     
         double this_delta = delta_val;
     
-        while(tries < 5 && new_llk  < llk_0){
+        while(tries < 5 && new_llk < llk_0){
             tries++;
             this_delta = this_delta/2;
             add_vec(this_delta, prop_p[s], baseP[s]);
             new_llk = llk_from_p(s);
         }
-
         if(new_llk < llk_0){
             failedGA_counts[s]++;
             baseCH[s] = backupCH[s];
-            new_llk = sum_llk(s); //Should NOT be llk_from_p(), since we are resetting the CH
 		    continue;
         }
 
         if(org_llk > new_llk){
 		    failedGA_counts[s]++;
 		    baseCH[s] = backupCH[s];
-		    new_llk = sum_llk(s);
-	    }
+	    } else {
+            baseP_2_baseS(s); 
+            baseS_2_baseCH(s); 
+        }
     } // end of loop over strata, s
 }
 
