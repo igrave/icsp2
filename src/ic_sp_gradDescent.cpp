@@ -65,6 +65,19 @@ double icm_Abst::llk_from_p(int s){
     return(ans);
 }
 
+double icm_Abst::sum_llk_from_S(int s) { 
+    int n = obs_inf[s].size(); 
+    double ans = 0; 
+    for (int i = 0; i < n; i++) { 
+        double sl = baseS[s][obs_inf[s][i].l]; 
+        double sr = baseS[s][obs_inf[s][i].r + 1]; 
+        double eta = etas[s][i]; 
+        double log_pob = cal_log_obs(sl, sr, eta); 
+        ans += log_pob * w[s][i]; 
+    } 
+    if (ISNAN(ans)) ans = R_NegInf; 
+    return ans; 
+} 
  
  
 double icm_Abst::getMaxScaleSize(const std::vector<double> &p, const std::vector<double> &prop_p){
@@ -99,10 +112,13 @@ void icm_Abst::gradientDescent_step(){
 #pragma omp parallel for schedule(dynamic)
 #endif
     for(int s = 0; s < n_strata; s++){
-        double org_llk = sum_llk(s);
         backupCH[s] = baseCH[s];
         baseCH_2_baseS(s);
         baseS_2_baseP(s);
+        
+        //double org_llk = sum_llk(s);
+        double org_llk = sum_llk_from_S(s); 
+        
 
         if (derivMethod >= 10) {
             analytical_dobs_dp(s);

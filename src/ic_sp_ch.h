@@ -141,6 +141,7 @@ public:
     std::vector<std::vector<double>> base_p_2ndDerv;
     std::vector<std::vector<double>> prop_p;
     double llk_from_p(int s);
+    double sum_llk_from_S(int s); 
     double numeric_p_der(int i);
     
     double dervConS_fromBaseS(double s, double eta);
