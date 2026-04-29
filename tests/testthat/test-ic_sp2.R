@@ -13,7 +13,7 @@ test_that("PH model works for sim data", {
     data = sim_data
   )
   expect_equal(result$coefficients, icr_result$coefficients, tolerance = 1e-7)
-
+  expect_equal(result$llk, icr_result$llk, tolerance = 1e-7)
   expect_equal(result$intervals[[1]], icr_result$T_bull_Intervals)
 })
 
