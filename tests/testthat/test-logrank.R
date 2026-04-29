@@ -61,6 +61,8 @@ test_that("ic test with sas type works with strata", {
   expect_equal(result$p.value, expected_p)
 
   expect_equal(result$var[1, 1], 20.4593484)
+
+  expect_snapshot(print(result))
 })
 
 
@@ -164,6 +166,7 @@ test_that("ic test with hly type works with strata", {
     format.pval(1.04555714969813e-07)
   )
   expect_equal(result$var[1, 1], 20.4593484)
+  expect_snapshot(print(result))
 })
 
 test_that("ic_logrank fails with incorrect type", {
