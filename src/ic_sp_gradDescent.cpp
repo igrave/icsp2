@@ -60,9 +60,7 @@ void icm_Abst::baseS_2_baseCH(int s){
 
 double icm_Abst::llk_from_p(int s){
     baseP_2_baseS(s);
-    baseS_2_baseCH(s);
-    double ans = sum_llk(s);
-    return(ans);
+    return sum_llk_from_S(s);
 }
 
 double icm_Abst::sum_llk_from_S(int s) { 
