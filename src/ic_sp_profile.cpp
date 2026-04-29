@@ -21,16 +21,6 @@ struct ProfileInfo {
     double target_llk;
 };
 
-static double profile_target_wrapper(double try_cov, void* info) {
-    ProfileInfo* pi = static_cast<ProfileInfo*>(info);
-    pi->obj->reg_par[pi->cov_i] = try_cov;
-    pi->obj->profile_cov_idx = pi->cov_i;
-    pi->obj->updateCovars = true;
-    pi->obj->update_etas();
-    double new_llk = pi->obj->run(50, 1e-10, true, 5);
-    return new_llk - pi->target_llk;
-}
-
 static double profile_target_wrapper(double try_cov, void* info) { 
     ProfileInfo* pi = static_cast<ProfileInfo*>(info); 
     pi->obj->reg_par[pi->cov_i] = try_cov; 
