@@ -20,9 +20,21 @@
 
 #include <stdio.h>
 #include <vector>
+#include <cmath>
+#include <omp.h>
 #include <RcppEigen.h>
 using namespace Rcpp;
 using namespace Eigen;
+
+// Compute log(1 - exp(-x)) for x > 0, numerically stable.
+// Uses the formulation from Mächler (2012).
+inline double log1mexp(double x) {
+    if (x <= M_LN2) {
+        return std::log(-std::expm1(-x));
+    } else {
+        return std::log1p(-std::exp(-x));
+    }
+}
 
 class node_info{
 public:
@@ -35,12 +47,13 @@ class obInf{
 public:
     int l,r;
     double pob;
+    double log_pob;
 };
 
 
 class icm_Abst{
 public:
-    void update_p_ob(int s, int i);    //done, not checked
+    virtual void update_p_ob(int s, int i);
     
     
     double sum_llk_all(); //done, not checked
@@ -82,7 +95,7 @@ public:
 
     // contributions of single observations to the likelihood derivatives wrt baseP and baseCH
     virtual double dllk_dp_i(double s_l, double s_r, double eta, double pob,  bool left, bool right) = 0;
-    virtual std::vector<double> dllk_dch_i(double ch_l, double ch_r, double eta, double pob, bool left) = 0;
+    virtual std::vector<double> dllk_dch_i(double ch_l, double ch_r, double eta, double log_pob, bool left) = 0;
     
     void calcAnalyticRegDervs(Eigen::MatrixXd &hess, Eigen::VectorXd &d1);
     void calcFinalRegContr(Eigen::MatrixXd &hess, Eigen::VectorXd &d1, Eigen::VectorXd &d3);
@@ -128,6 +141,7 @@ public:
     std::vector<std::vector<double>> base_p_2ndDerv;
     std::vector<std::vector<double>> prop_p;
     double llk_from_p(int s);
+    double sum_llk_from_S(int s); 
     double numeric_p_der(int i);
     
     double dervConS_fromBaseS(double s, double eta);
@@ -137,7 +151,7 @@ public:
     void baseS_2_baseCH(int s);
     void calc_cond_S_derv();
     void calc_base_p_derv();
-    double getMaxScaleSize( std::vector<double> &p, std::vector<double> &prop_p);
+    double getMaxScaleSize(const std::vector<double> &p, const std::vector<double> &prop_p);
     void gradientDescent_step();
     void auto_base_p_derv(int s);
     void analytical_dobs_dp(int s);
@@ -147,21 +161,24 @@ public:
     std::vector<std::vector<double>> dob_dp_both;
     std::vector<std::vector<double>> dob_dp_rightOnly;
 
-	double run(int maxIter, double tol, bool useGA, int baselineUpdates);
+    std::vector<std::vector<int>> isActive; // for gradientDescent_step()
+
+	double run(int maxIter, double tol, bool useGA, int baselineUpdates); // returns log likelihood
     
     void numeric_dobs_dp(int s, bool forGA);
     //void numeric_dobs2_d2p();
     
-    double cal_log_obs(double s1, double s2, double eta);
+    virtual double cal_log_obs(double s1, double s2, double eta) = 0;
     
     
     std::vector<std::vector<bool>> usedVec;
     
     double almost_inf;
-    int failedGA_counts;
+    std::vector<int>  failedGA_counts;
     int iter;
     int numBaselineIts;
     bool useFullHess;
+    int profile_cov_idx = -1;  // index of fixed covariate during profile likelihood (-1 = none)
     
     double exchangeAndUpdate(double delta, int i1, int i2);
     // REQUIRES baseP BEING UP TO DATE!!!
@@ -169,12 +186,17 @@ public:
     std::vector<int> exchangeIndices;
     
     void checkCH(int s);
+
+    virtual ~icm_Abst() = default;
+    virtual icm_Abst* clone() const = 0;
     
     void last_p_update();
     void vem();
     void exchange_p_opt(int i1, int i2);
     void vem_sweep();
     void vem_sweep2();
+
+    void profile_llk_search(double target_llk, double ref_llk, int cov_i, int direction);
 };
 
 void setup_icm(SEXP Rlind, SEXP Rrind, SEXP RCovars, SEXP R_w, SEXP R_strata,
@@ -185,12 +207,12 @@ void cumhaz2p_hat(Eigen::VectorXd &ch, std::vector<double> &p);
 
 class icm_ph : public icm_Abst{
 public:
-    double basHaz2CondS(double ch, double eta){
+    double basHaz2CondS(double ch, double eta) override {
         if(ch == R_NegInf)  return(1);
         if(ch == R_PosInf)  return(0);
         return(exp(-exp(ch + eta) )) ;}
     
-    double baseS2CondS(double s, double eta){
+    double baseS2CondS(double s, double eta) override {
         if(s >= 1.0) return(1.0);
         if(s <= 0.0) return(0.0);
 /*        double expEta = exp(eta);
@@ -200,29 +222,29 @@ public:
         return(ans);
     }
     
-    double base_d1_contr(double ch, double pob, double eta){
+    double base_d1_contr(double ch, double pob, double eta) override {
         double expVal = -exp(eta + ch);
         double logAns = eta + ch + expVal - log(pob);
         return (-exp(logAns));
     }
     
-    double reg_d1_lnk(double ch, double xb, double log_p){
+    double reg_d1_lnk(double ch, double xb, double log_p) override {
         double term1 = -exp(ch + xb);
         return(-exp(term1 + ch + xb - log_p));
     }
-    double reg_d2_lnk(double ch, double xb, double log_p){
+    double reg_d2_lnk(double ch, double xb, double log_p) override {
         double term1 = -exp(ch + xb);
         double term2 = exp(term1 - log_p);
         return(term1 * term2 + term1 * term1 *term2);
     }
-	double reg_d3_lnk(double ch, double xb, double log_p){
+	double reg_d3_lnk(double ch, double xb, double log_p) override {
         double term1 = -exp(ch + xb);
         double term2 = exp(term1 - log_p);
         double term1_sq = term1 * term1;
         return(term1 * term2 + 3 * term1_sq * term2 + term1 * term1_sq * term2);
     }
 
-	void stablizeBCH(){
+	void stablizeBCH() override {
         for(int s = 0; s < n_strata; s++){
             int k = baseCH[s].size();
 		    double thisChange = baseCH[s][k-2] - 2.0;
@@ -234,7 +256,7 @@ public:
         update_etas();
 	}
 	
-    double dllk_dp_i(double s_l, double s_r, double eta, double pob, bool left, bool right){
+    double dllk_dp_i(double s_l, double s_r, double eta, double pob, bool left, bool right) override {
         // no derivative terms
         if (!left && !right) return(0.0);
         
@@ -294,24 +316,37 @@ public:
         return(ans);
     }
 
-    std::vector<double> dllk_dch_i(double ch_l, double ch_r, double eta, double pob, bool left){
+    std::vector<double> dllk_dch_i(double ch_l, double ch_r, double eta, double log_pob, bool left) override {
         std::vector<double> ans(2);
         double d1, d2;
-        double ech;
-
+        // Derivative of S w.r.t. H: dS/dH = -exp(H+eta) * exp(-exp(H+eta))
+        //   = -exp(a - exp(a)) where a = H + eta
+        // d1 = dS/dH / P = -exp(a - exp(a) - log_pob)
         if (left) {
-            ech = exp(ch_l + eta);
+            double a = ch_l + eta;
             if (ch_r == R_PosInf) {
-               d1 = -ech;
+               d1 = -exp(a);
                d2 = d1;
             } else {
-                d1 = -(ech * exp(-ech)) / pob;
-                d2 = d1 * (1 - ech) - d1 * d1;
+                double log_numer = a - exp(a);  // log(|dS_l/dH_l|)
+                double log_abs_d1 = log_numer - log_pob;
+                if (log_abs_d1 < -36.0 || log_numer < -700.0) {
+                    d1 = 0.0; d2 = 0.0;
+                } else {
+                    d1 = -exp(log_abs_d1);
+                    d2 = d1 * (1.0 - exp(a)) - d1 * d1;
+                }
             }
         } else {
-            ech = exp(ch_r + eta);
-            d1 = (ech * exp(-ech)) / pob;
-            d2 = d1 * (1 - ech) - d1 * d1;
+            double a = ch_r + eta;
+            double log_numer = a - exp(a);
+            double log_abs_d1 = log_numer - log_pob;
+            if (log_abs_d1 < -36.0 || log_numer < -700.0) {
+                d1 = 0.0; d2 = 0.0;
+            } else {
+                d1 = exp(log_abs_d1);
+                d2 = d1 * (1.0 - exp(a)) - d1 * d1;
+            }
         }
 
         ans[0] = d1;
@@ -319,14 +354,64 @@ public:
         return(ans);
     };
 
-	
+    // Numerically stable log(S(s1|eta) - S(s2|eta)) for PH model.
+    // Computes log(s1^nu - s2^nu) where nu = exp(eta) in log-space,
+    // avoiding underflow when s^nu is near zero.
+    double cal_log_obs(double s1, double s2, double eta) override {
+        double nu = exp(eta);
+        if (s1 >= 1.0 && s2 <= 0.0) {
+            return 0.0;
+        }
+        if (s2 <= 0.0) {
+            return nu * log(s1);
+        }
+        if (s1 >= 1.0) {
+            // log(1 - s2^nu) = log(1 - exp(nu*log(s2)))
+            return log1mexp(-nu * log(s2));
+        }
+        // General: log(s1^nu - s2^nu)
+        //   = nu*log(s1) + log(1 - exp(nu*log(s2/s1)))
+        //   = nu*log(s1) + log1mexp(nu*log(s1/s2))
+        double log_ratio = log(s1) - log(s2);
+        return nu * log(s1) + log1mexp(nu * log_ratio);
+    }
+
+    // Numerically stable update_p_ob for PH model.
+    // Uses direct computation when possible (bit-exact with old code),
+    // falls back to log-space when pob underflows to 0.
+    void update_p_ob(int s, int i) override {
+        double chl = baseCH[s][ obs_inf[s][i].l ];
+        double chr = baseCH[s][ obs_inf[s][i].r + 1 ];
+        double eta = etas[s][i];
+        double sl = basHaz2CondS(chl, eta);
+        double sr = basHaz2CondS(chr, eta);
+        obs_inf[s][i].pob = sl - sr;
+        if (obs_inf[s][i].pob > 0.0) {
+            obs_inf[s][i].log_pob = log(obs_inf[s][i].pob);
+        } else {
+            // pob underflowed to 0 or negative (monotonicity violation).
+            // Use log-space: log(pob) = -exp(a) + log1mexp(exp(b) - exp(a))
+            double ea = exp(chl + eta);
+            double eb = exp(chr + eta);
+            double diff = eb - ea;
+            if (diff > 0.0) {
+                obs_inf[s][i].log_pob = -ea + log1mexp(diff);
+                obs_inf[s][i].pob = exp(obs_inf[s][i].log_pob);
+            } else {
+                obs_inf[s][i].log_pob = R_NegInf;
+                obs_inf[s][i].pob = 0.0;
+            }
+        }
+    }
+
+    icm_Abst* clone() const override { return new icm_ph(*this); }
     virtual ~icm_ph(){};
 };
 
 
 class icm_po : public icm_Abst{
 public:
-    double basHaz2CondS(double ch, double eta){
+    double basHaz2CondS(double ch, double eta) override {
         if(ch == R_NegInf)  return(1);
         if(ch == R_PosInf)  return(0);
         double mu = exp(ch);
@@ -334,27 +419,27 @@ public:
         double s_nu = exp(eta - mu);
         return( (s_nu) / (s_nu - s + 1)) ;}
     
-    double baseS2CondS(double s, double eta){
+    double baseS2CondS(double s, double eta) override {
         double nu = exp(eta);
         double s_nu = s * nu;
         return((s_nu)/ (s_nu - s + 1) );
     }
     
-    double base_d1_contr(double ch, double pob, double eta){
+    double base_d1_contr(double ch, double pob, double eta) override {
         double s = exp(-exp(ch));
         double s_nu = exp(eta - exp(ch));
         double logAns = -log(pob) - 2 * log(s_nu - s + 1) + ch - exp(h);
         return (-exp(logAns));
     }
     
-    double reg_d1_lnk(double ch, double xb, double log_p){
+    double reg_d1_lnk(double ch, double xb, double log_p) override {
         double s = exp(-exp(ch));
         double a = exp(xb-exp(ch));
         double ans = exp( log(a *(1-s)) - 2 * log( a - s + 1) - log_p);
         return(ans);
 //        return( a * (1-s) / pow(a - s + 1, 2.0) );
     }
-    double reg_d2_lnk(double ch, double xb, double log_p){
+    double reg_d2_lnk(double ch, double xb, double log_p) override {
         double s = exp(-exp(ch));
         double a = exp(xb-exp(ch));
         double b = a - s + 1;
@@ -363,7 +448,7 @@ public:
         double ans = top/(bottom * exp(log_p));
         return(ans);
     }
-    double reg_d3_lnk(double ch, double xb, double log_p){
+    double reg_d3_lnk(double ch, double xb, double log_p) override {
         double s = exp(-exp(ch));
         double a = exp(xb - exp(ch));
         double b = a - s + 1;
@@ -373,9 +458,9 @@ public:
     }
 
     
-	void stablizeBCH(){}
+	void stablizeBCH() override {}
 	
-    double dllk_dp_i(double s_l, double s_r, double eta, double pob, bool left, bool right){
+    double dllk_dp_i(double s_l, double s_r, double eta, double pob, bool left, bool right) override {
         // no derivative terms
         if (!left && !right) return(0.0);
         if (eta == 0.0) {
@@ -486,7 +571,7 @@ public:
     };
  */
 
-  std::vector<double> dllk_dch_i(double ch_l, double ch_r, double eta, double pob, bool left) {
+  std::vector<double> dllk_dch_i(double ch_l, double ch_r, double eta, double log_pob, bool left) override {
         std::vector<double> ans(2);
         double d1 = 0.0, d2 = 0.0;
         
@@ -566,8 +651,18 @@ public:
         return(ans);
     };
 
+    // Numerically stable log(S(s1|eta) - S(s2|eta)) for PO model.
+    // Uses the identity: S_l - S_r = nu*(s_l - s_r) / (D_l * D_r)
+    // where D = s*(nu-1) + 1, avoiding cancellation.
+    double cal_log_obs(double s1, double s2, double eta) override {
+        if (s1 >= 1.0 && s2 <= 0.0) return 0.0;
+        double nu = exp(eta);
+        double D1 = s1 * (nu - 1.0) + 1.0;
+        double D2 = s2 * (nu - 1.0) + 1.0;
+        return eta + log(s1 - s2) - log(D1) - log(D2);
+    }
 
-
+    icm_Abst* clone() const override { return new icm_po(*this); }
     virtual ~icm_po(){};
 };
 

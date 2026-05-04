@@ -1,0 +1,9 @@
+ifeq ($(shell uname),Darwin)
+PKG_CPPFLAGS =-Xclang -fopenmp
+PKG_LIBS =-lomp
+# PKG_CPPFLAGS += -I/usr/local/include -Xclang -fopenmp
+#PKG_LIBS += /usr/local/lib/libomp.dylib
+else
+PKG_CXXFLAGS += $(SHLIB_OPENMP_CXXFLAGS)
+PKG_LIBS += $(SHLIB_OPENMP_CXXFLAGS)
+endif
