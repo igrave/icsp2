@@ -65,8 +65,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // ic_sp_ch
-SEXP ic_sp_ch(SEXP Rlind, SEXP Rrind, SEXP Rcovars, SEXP fitType, SEXP R_w, SEXP R_strata, SEXP R_use_GD, SEXP R_maxiter, SEXP R_baselineUpdates, SEXP R_useFullHess, SEXP R_updateCovars, SEXP R_initialRegVals, SEXP R_derivMethod);
-RcppExport SEXP _icsp2_ic_sp_ch(SEXP RlindSEXP, SEXP RrindSEXP, SEXP RcovarsSEXP, SEXP fitTypeSEXP, SEXP R_wSEXP, SEXP R_strataSEXP, SEXP R_use_GDSEXP, SEXP R_maxiterSEXP, SEXP R_baselineUpdatesSEXP, SEXP R_useFullHessSEXP, SEXP R_updateCovarsSEXP, SEXP R_initialRegValsSEXP, SEXP R_derivMethodSEXP) {
+SEXP ic_sp_ch(SEXP Rlind, SEXP Rrind, SEXP Rcovars, SEXP fitType, SEXP R_w, SEXP R_strata, SEXP R_use_GD, SEXP R_maxiter, SEXP R_baselineUpdates, SEXP R_useFullHess, SEXP R_updateCovars, SEXP R_initialRegVals, SEXP R_derivMethod, SEXP R_covarOffset);
+RcppExport SEXP _icsp2_ic_sp_ch(SEXP RlindSEXP, SEXP RrindSEXP, SEXP RcovarsSEXP, SEXP fitTypeSEXP, SEXP R_wSEXP, SEXP R_strataSEXP, SEXP R_use_GDSEXP, SEXP R_maxiterSEXP, SEXP R_baselineUpdatesSEXP, SEXP R_useFullHessSEXP, SEXP R_updateCovarsSEXP, SEXP R_initialRegValsSEXP, SEXP R_derivMethodSEXP, SEXP R_covarOffsetSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -83,7 +83,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< SEXP >::type R_updateCovars(R_updateCovarsSEXP);
     Rcpp::traits::input_parameter< SEXP >::type R_initialRegVals(R_initialRegValsSEXP);
     Rcpp::traits::input_parameter< SEXP >::type R_derivMethod(R_derivMethodSEXP);
-    rcpp_result_gen = Rcpp::wrap(ic_sp_ch(Rlind, Rrind, Rcovars, fitType, R_w, R_strata, R_use_GD, R_maxiter, R_baselineUpdates, R_useFullHess, R_updateCovars, R_initialRegVals, R_derivMethod));
+    Rcpp::traits::input_parameter< SEXP >::type R_covarOffset(R_covarOffsetSEXP);
+    rcpp_result_gen = Rcpp::wrap(ic_sp_ch(Rlind, Rrind, Rcovars, fitType, R_w, R_strata, R_use_GD, R_maxiter, R_baselineUpdates, R_useFullHess, R_updateCovars, R_initialRegVals, R_derivMethod, R_covarOffset));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -108,7 +109,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_icsp2_fastNumericInsert_cpp", (DL_FUNC) &_icsp2_fastNumericInsert_cpp, 3},
     {"_icsp2_hly_sample", (DL_FUNC) &_icsp2_hly_sample, 4},
     {"_icsp2_fast_logrank", (DL_FUNC) &_icsp2_fast_logrank, 3},
-    {"_icsp2_ic_sp_ch", (DL_FUNC) &_icsp2_ic_sp_ch, 13},
+    {"_icsp2_ic_sp_ch", (DL_FUNC) &_icsp2_ic_sp_ch, 14},
     {"_icsp2_findMI", (DL_FUNC) &_icsp2_findMI, 5},
     {NULL, NULL, 0}
 };

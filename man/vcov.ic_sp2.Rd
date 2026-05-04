@@ -30,8 +30,9 @@ Profile Likelihood Covariance for Semi-Parametric Models
 \details{
 The covariance matrix is calculated using the profile likelihood approach.
 (Murphey and Vand Der Vaart 2000).
-This method involves perturbing the regression parameters and
-refitting the model to estimate the curvature of the log-likelihood function,
+This method involves perturbing the regression parameters, updating the
+baseline hazard estimates using the \code{profile_fit} function with the perturbed
+parameters, and calculating the change in log-likelihood for each perturbation,
 which is then used to compute the covariance matrix.
 We borrowing the naming convention from the Stata \code{stintcox} manual
 \url{https://www.stata.com/manuals/ststintcox.pdf}.

@@ -104,7 +104,7 @@ public:
     Eigen::VectorXd     reg_d1;     //first derivatives of regression parameters        //initialized
     Eigen::MatrixXd     reg_d2;     //Hessian for derivatives       //initialized
     Eigen::VectorXd     reg_d3;     //third derivatives of regression parameters
-//    Eigen::VectorXd     reg_d2;     //second derivatives: ignoring off diagonals!
+    Eigen::VectorXd     covarOffset; //covariate centering offset (original means)
 
     std::vector<std::vector<double>> w;
     
@@ -177,7 +177,8 @@ public:
     void vem_sweep2();
 };
 
-void setup_icm(SEXP Rlind, SEXP Rrind, SEXP RCovars, SEXP R_w, SEXP R_strata, icm_Abst* icm_obj);
+void setup_icm(SEXP Rlind, SEXP Rrind, SEXP RCovars, SEXP R_w, SEXP R_strata,
+               SEXP R_RegPars, SEXP R_CovarOffset, icm_Abst* icm_obj);
 //function for setting up a actSet_Abst class
 
 void cumhaz2p_hat(Eigen::VectorXd &ch, std::vector<double> &p);

@@ -154,8 +154,8 @@ ic_sp2 <- function(
   )
 
   # Recentering covariates
-  covarOffset <- colMeans(x)
-  x <- x - rep(1, nrow(x)) %*% t(covarOffset)
+  other_info$covarOffset <- colMeans(x)
+  x <- x - rep(1, nrow(x)) %*% t(other_info$covarOffset)
 
   result <- .fit_ic_sp(
     x = x,
@@ -178,7 +178,7 @@ ic_sp2 <- function(
   covar <- NULL
 
   names(result$coefficients) <- x_names
-  result$covarOffset <- matrix(covarOffset, nrow = 1)
+  result$covarOffset <- matrix(other_info$covarOffset, nrow = 1)
   result$var <- covar
   result$call <- call
   result$formula <- formula
@@ -242,6 +242,7 @@ ic_sp_po <- ic_sp2
   updateCovars <- other_info$updateCovars
   regStart <- other_info$regStart
   derivMethod <- other_info$derivMethod
+  covarOffset <- other_info$covarOffset
 
   mi_info <- by(y, strata, function(y_s) {
     find_maximal_intersections(y_s[, 1], y_s[, 2])
@@ -276,7 +277,8 @@ ic_sp_po <- ic_sp2
     as.logical(useFullHess),
     as.logical(updateCovars),
     as.double(regStart),
-    as.integer(derivMethod)
+    as.integer(derivMethod),
+    as.double(covarOffset)
   )
   names(c_ans) <- c(
     'p_hat',
