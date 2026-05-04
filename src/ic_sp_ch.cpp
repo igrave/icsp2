@@ -715,7 +715,7 @@ SEXP ic_sp_ch(SEXP Rlind, SEXP Rrind, SEXP Rcovars, SEXP fitType,
               SEXP R_w, SEXP R_strata, SEXP R_use_GD, SEXP R_maxiter,
               SEXP R_baselineUpdates, SEXP R_useFullHess, SEXP R_updateCovars,
               SEXP R_initialRegVals, SEXP R_derivMethod, SEXP R_covarOffset,
-              SEXP R_profileCI_diff) {
+              SEXP R_baselineStart, SEXP R_profileCI_diff) {
     icm_Abst* optObj;
     bool useGD = LOGICAL(R_use_GD)[0] == TRUE;
     
