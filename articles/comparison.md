@@ -1,15 +1,18 @@
 # comparison
 
 ``` r
+
 library(icsp2)
 ```
 
 ``` r
+
 library(haven)
 idu <- read_dta("./local/idu.dta")
 ```
 
 ``` r
+
 idu_1 <- ic_sp_ph(
   Surv(ltime, rtime, type = "interval2") ~ age_mean +
     male +

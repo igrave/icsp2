@@ -3,6 +3,7 @@
 Semiparametric interval censored survival regression with stratification
 
 ``` r
+
 # Install 'icsp2' from R-universe:
 install.packages('icsp2', repos = c('https://igrave.r-universe.dev', 'https://cloud.r-project.org'))
 ```
