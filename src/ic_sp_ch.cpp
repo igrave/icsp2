@@ -101,7 +101,7 @@ void icm_Abst::icm_addPar(int s, std::vector<double> &delta){
 
 /*      INITIALIZATION TOOLS    */
 void setup_icm(SEXP Rlind, SEXP Rrind, SEXP RCovars, SEXP R_w, SEXP R_strata,
-                SEXP R_RegPars, icm_Abst* icm_obj){
+                SEXP R_RegPars, SEXP R_CovarOffset, icm_Abst* icm_obj){
     icm_obj->h = 0.0001;
     icm_obj->almost_inf = 1.0/icm_obj->h;
 
@@ -170,8 +170,13 @@ void setup_icm(SEXP Rlind, SEXP Rrind, SEXP RCovars, SEXP R_w, SEXP R_strata,
     icm_obj->reg_d2.resize(reg_k, reg_k);
     icm_obj->reg_d3.resize(reg_k);
     icm_obj->reg_par.resize(reg_k);
+    icm_obj->covarOffset.resize(reg_k);
     double* regParPtr = REAL(R_RegPars);
-    for(int i = 0; i < reg_k; i++){ icm_obj->reg_par[i] = regParPtr[i]; }
+    double* covarOffsetPtr = REAL(R_CovarOffset);
+    for(int i = 0; i < reg_k; i++){
+        icm_obj->reg_par[i] = regParPtr[i];
+        icm_obj->covarOffset[i] = covarOffsetPtr[i];
+    }
     
 
     icm_obj->baseCH.resize(nS);
@@ -625,16 +630,18 @@ void icm_Abst::calcFinalRegContr(Eigen::MatrixXd &hess, Eigen::VectorXd &d1, Eig
             this_totCont = totCont[i];
             this_totCont2 = totCont2[i];
             this_totCont3 = totCont3[i];
-            // Compute ||z_i||^2 for cross-term d3 accumulation
+            // Compute ||z_i||^2 for cross-term d3 accumulation using uncentered covariates
             double z_sq_sum = 0.0;
             for(int b = 0; b < k; b++){
-                z_sq_sum += covars[s](i,b) * covars[s](i,b);
+                double z_orig_b = covars[s](i,b) + covarOffset[b];
+                z_sq_sum += z_orig_b * z_orig_b;
             }
             for(int a = 0; a < k; a++){
                 this_covar = covars[s](i,a);
                 this_w_covar = this_w * this_covar;
                 d1[a] += this_w_covar * this_totCont;
-                d3[a] += this_w_covar * z_sq_sum * this_totCont3;
+                double z_orig_a = covars[s](i,a) + covarOffset[a];
+                d3[a] += this_w * z_orig_a * z_sq_sum * this_totCont3;
                 if(useFullHess){
                     for(int b = 0; b < a; b++){
                         hess(a,b) += this_w_covar * covars[s](i,b) * this_totCont2;
@@ -707,9 +714,8 @@ void icm_Abst::covar_nr_step(){
 SEXP ic_sp_ch(SEXP Rlind, SEXP Rrind, SEXP Rcovars, SEXP fitType,
               SEXP R_w, SEXP R_strata, SEXP R_use_GD, SEXP R_maxiter,
               SEXP R_baselineUpdates, SEXP R_useFullHess, SEXP R_updateCovars,
-              SEXP R_initialRegVals, SEXP R_derivMethod,
-              SEXP R_baselineStart, SEXP R_profileCI_diff
-            ) {
+              SEXP R_initialRegVals, SEXP R_derivMethod, SEXP R_covarOffset,
+              SEXP R_baselineStart, SEXP R_profileCI_diff) {
     icm_Abst* optObj;
     bool useGD = LOGICAL(R_use_GD)[0] == TRUE;
     
@@ -730,7 +736,7 @@ SEXP ic_sp_ch(SEXP Rlind, SEXP Rrind, SEXP Rcovars, SEXP fitType,
             Rprintf("Error found (see warnings). Restarting optimization with derivative method %d\n", derivMethod);
         }
         try {
-            setup_icm(Rlind, Rrind, Rcovars, R_w, R_strata, R_initialRegVals, optObj);
+            setup_icm(Rlind, Rrind, Rcovars, R_w, R_strata, R_initialRegVals, R_covarOffset, optObj);
 
             // Warm-start baseline from previous fit if provided
             if (R_baselineStart != R_NilValue) {

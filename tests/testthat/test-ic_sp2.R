@@ -206,7 +206,7 @@ test_that("PO model works for sim data with variance estimation", {
     data = sim_data,
     control = ic_sp_control(derivMethod = c(12, 1))
   )
-  result_cov <- vcov(result)
+  result_cov <- vcov(result, "oim_curvature")
 
   icr_result <- icenReg::ic_sp(
     Surv(l, u, type = 'interval2') ~ x1 + x2,
@@ -352,7 +352,7 @@ test_that("PH model works with profile_ci", {
 
   ci_res_2 <- confint(result)
   ci_expected_2 <- matrix(
-    c(0.12536750043, -0.68054485968, 0.62303049953, -0.39806531257),
+    c(0.125367883, -0.680544642, 0.623030116, -0.398065529),
     nrow = 2,
     dimnames = list(c("x1", "x2"), c("2.5 %", "97.5 %"))
   )

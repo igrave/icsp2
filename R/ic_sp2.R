@@ -163,8 +163,8 @@ ic_sp2 <- function(
   )
 
   # Recentering covariates
-  covarOffset <- colMeans(x)
-  x <- x - rep(1, nrow(x)) %*% t(covarOffset)
+  other_info$covarOffset <- colMeans(x)
+  x <- x - rep(1, nrow(x)) %*% t(other_info$covarOffset)
 
   result <- .fit_ic_sp(
     x = x,
@@ -188,7 +188,7 @@ ic_sp2 <- function(
 
   names(result$coefficients) <- x_names
   dimnames(result$profile_ci) <- list(x_names, c("lower", "upper"))
-  result$covarOffset <- matrix(covarOffset, nrow = 1)
+  result$covarOffset <- matrix(other_info$covarOffset, nrow = 1)
   result$var <- covar
   result$call <- call
   result$formula <- formula
@@ -255,6 +255,7 @@ ic_sp_po <- ic_sp2
   updateCovars <- other_info$updateCovars
   regStart <- other_info$regStart
   derivMethod <- other_info$derivMethod
+  covarOffset <- other_info$covarOffset
   profileCI_diff <- if (!is.null(other_info$profile_ci)) {
     qchisq(other_info$profile_ci, df = 1) / 2
   } else {
@@ -309,6 +310,7 @@ ic_sp_po <- ic_sp2
     as.logical(updateCovars),
     as.double(regStart),
     as.integer(derivMethod),
+    as.double(covarOffset),
     baseline_start,
     profileCI_diff
   )
