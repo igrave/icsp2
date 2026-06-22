@@ -1,3 +1,7 @@
+# icsp2 0.2.0
+
+# icsp2 0.1.0
+
 # icsp2 0.0.0.9000
 * Starts from fork of `icenReg` (v2.0.16)
 * Implements strata for semi-parametric fits in C++

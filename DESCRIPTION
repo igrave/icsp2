@@ -1,11 +1,11 @@
 Package: icsp2
 Title: Stratified interval-censored semi-parametric survival models
-Version: 0.0.0.9000
+Version: 0.2.0
 Authors@R: 
     c(
         person("Isaac", "Gravestock", ,"isaac.gravestock@gmail.com", role = c("aut", "cre"),
             comment = c(ORCID = "0000-0003-0283-2065")),
-        person("Clifford", "Anderson-Bergman", , role = c("aut"))
+        person("Clifford", "Anderson-Bergman", comment = "creator of icenReg", role = "ctb")
     )
 Description: Semi-parametric survival models for interval censored data with stratification, based on the `icenReg` package, including model fitting and testing.
 BugReports: https://github.com/igrave/icsp2/issues
@@ -13,7 +13,6 @@ URL: https://igrave.github.io/icsp2/
 License: LGPL (>= 2.0, < 3)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.3
 Depends: 
     R (>= 4.2.0)
 LinkingTo: 
@@ -33,3 +32,4 @@ LazyData: TRUE
 language: en
 VignetteBuilder: knitr
 SystemRequirements: GNU make
+Config/roxygen2/version: 8.0.0
