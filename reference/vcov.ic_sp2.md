@@ -1,12 +1,16 @@
-# Profile Likelihood Covariance for Semi-Parametric Models
+# Profile Likelihood Variance and Confidence Intervals for Semi-Parametric Models
 
-Profile Likelihood Covariance for Semi-Parametric Models
+Profile Likelihood Variance and Confidence Intervals for Semi-Parametric
+Models
 
 ## Usage
 
 ``` r
 # S3 method for class 'ic_sp2'
 vcov(object, type = "oim_curvature", fixed = 5, typical = 1, large = 2, ...)
+
+# S3 method for class 'ic_sp2'
+confint(object, parm, level = 0.95, ...)
 ```
 
 ## Arguments
@@ -39,11 +43,25 @@ vcov(object, type = "oim_curvature", fixed = 5, typical = 1, large = 2, ...)
 
 - ...:
 
-  Unused.
+  Unused in [`vcov()`](https://rdrr.io/r/stats/vcov.html). In
+  [`confint()`](https://rdrr.io/r/stats/confint.html) it is used to
+  specify the vcov parameters such as `type`, `fixed`, `typical`, and
+  `large`.
+
+- parm:
+
+  a specification of which parameters are to be given confidence
+  intervals, either a vector of numbers or a vector of names. If
+  missing, all parameters are considered.
+
+- level:
+
+  the confidence level required.
 
 ## Value
 
-Variance-covariance matrix of the regression parameters.
+Variance-covariance matrix of the regression parameters or the
+confidence interval matrix.
 
 ## Details
 
@@ -71,6 +89,11 @@ outer product of gradients instead of the observed information matrix
 for the covariance calculation.
 
 For larged values of `fixed` the model fitting may fail to converge.
+
+The [`confint()`](https://rdrr.io/r/stats/confint.html) method gives a
+Wald type CI and is based on
+[stats::confint](https://rdrr.io/r/stats/confint.html) but allows the
+pass through of the `vcov.ic_sp2` parameters.
 
 ## References
 

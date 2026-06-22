@@ -47,6 +47,11 @@ An object of class `"cpp_logrank"`, a list with components:
 
   Numeric vector of sample sizes per group.
 
+## Details
+
+Compared to Survival::survdiff, this implementation is faster but does
+not have the same flexibility or checks.
+
 ## Examples
 
 ``` r

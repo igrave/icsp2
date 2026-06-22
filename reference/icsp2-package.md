@@ -19,4 +19,9 @@ Useful links:
 
 Authors:
 
-- Clifford Anderson-Bergman
+- Isaac Gravestock <isaac.gravestock@gmail.com>
+  ([ORCID](https://orcid.org/0000-0003-0283-2065))
+
+Other contributors:
+
+- Clifford Anderson-Bergman (creator of icenReg) \[contributor\]

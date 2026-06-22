@@ -23,7 +23,9 @@
 - [`lines(`*`<ic_sp2>`*`)`](https://igrave.github.io/icsp2/reference/lines.ic_sp2.md)
   : Lines method for ic_sp2 objects
 - [`vcov(`*`<ic_sp2>`*`)`](https://igrave.github.io/icsp2/reference/vcov.ic_sp2.md)
-  : Profile Likelihood Covariance for Semi-Parametric Models
+  [`confint(`*`<ic_sp2>`*`)`](https://igrave.github.io/icsp2/reference/vcov.ic_sp2.md)
+  : Profile Likelihood Variance and Confidence Intervals for
+  Semi-Parametric Models
 - [`print(`*`<ic_sp2>`*`)`](https://igrave.github.io/icsp2/reference/print.ic_sp2.md)
   : Print method for ic_sp2 objects
 - [`profile_fit()`](https://igrave.github.io/icsp2/reference/profile_fit.md)

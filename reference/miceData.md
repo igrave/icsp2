@@ -9,7 +9,7 @@ environment or germ free environment.
 ## Usage
 
 ``` r
-miceData
+data(miceData)
 ```
 
 ## Format

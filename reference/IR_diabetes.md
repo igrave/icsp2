@@ -7,7 +7,7 @@ dataset found in the package `glrt`.
 ## Usage
 
 ``` r
-IR_diabetes
+data(IR_diabetes)
 ```
 
 ## Format
