@@ -8,7 +8,7 @@
 An object of class \code{data.frame} with 144 rows and 3 columns.
 }
 \usage{
-miceData
+data(miceData)
 }
 \description{
 RFM mice were sacrificed and examined for lung tumors. This resulted in current status interval censored data:

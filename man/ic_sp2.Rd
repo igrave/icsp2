@@ -15,7 +15,7 @@ ic_sp2(
   B = c(0, 1),
   control = ic_sp_control(...),
   model = c("ph", "po"),
-  profile_ci = 0,
+  profile_ci = NULL,
   ...
 )
 
@@ -28,7 +28,7 @@ ic_sp_ph(
   B = c(0, 1),
   control = ic_sp_control(...),
   model = c("ph", "po"),
-  profile_ci = 0,
+  profile_ci = NULL,
   ...
 )
 
@@ -41,12 +41,12 @@ ic_sp_po(
   B = c(0, 1),
   control = ic_sp_control(...),
   model = c("ph", "po"),
-  profile_ci = 0,
+  profile_ci = NULL,
   ...
 )
 }
 \arguments{
-\item{formula}{A model formula with Surv(l, u, type = 'interval2') response and covariates on the right-hand side. May also contain \code{strata()} terms.}
+\item{formula}{A model formula with \code{Surv(l, u, type = 'interval2')} response and covariates on the right-hand side. May also contain \code{strata()} terms.}
 
 \item{data}{A data frame containing the variables in the formula, including strata terms.}
 
@@ -63,13 +63,24 @@ ic_sp_po(
 \item{model}{Type of model to fit. Choices are \code{"ph"} for proportional hazards and \code{"po"} for proportional odds. Default is \code{"ph"}.
 This is normally determined by the function aliases \code{ic_sp_ph} and \code{ic_sp_po}.}
 
-\item{profile_ci}{Confidence level for profile likelihood confidence intervals. Default is 0.95. Set to \code{NULL} to skip profile likelihood confidence interval calculations.}
+\item{profile_ci}{Confidence level for profile likelihood confidence intervals based on the likelihood ratio.
+Set to \code{NULL} to skip this profile likelihood confidence interval calculations.}
 
 \item{...}{Additional arguments passed to control.}
 }
 \value{
-A list containing the fitted model information, including coefficients, variance-covariance matrix, and other details.
+An object of class \code{"ic_sp2"}, a list containing the fitted model information, including coefficients, variance-covariance matrix, and other details.
 }
 \description{
-Fit a semi-parametric model for interval-censored data
+This function fits a semi-parametric model for interval-censored data using
+either the proportional hazards or proportional odds model. Aliases \code{ic_sp_ph()} and \code{ic_sp_po()} are provided for convenience.
+}
+\examples{
+fit_ph <- ic_sp_ph(Surv(l, u, type = "interval2") ~ grp, data = miceData, profile_ci = 0.95)
+summary(fit_ph)
+
+# The CI for the regression parameter(s) based on the likelihood ratio:
+fit_ph$profile_ci
+
+confint(fit_ph, level = 0.95)
 }

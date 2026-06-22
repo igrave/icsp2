@@ -3,6 +3,9 @@
 #' This is an internal implementation of right-censored logrank test
 #' for use within [ic_logrank] where many tests need to be performed
 #' efficiently for variance calculation.
+#' 
+#' Compared to Survival::survdiff, this implementation is faster but does
+#' not have the same flexibility or checks.
 #'
 #' @param time Numeric vector of survival/censoring times.
 #' @param event Logical vector of event indicators (TRUE = event, FALSE = censored).
@@ -16,7 +19,7 @@
 #'   \item{variance}{Numeric variance matrix}
 #'   \item{n_by_group}{Numeric vector of sample sizes per group.}
 #' }
-#'
+#' @keywords internal
 #' @examples
 #' set.seed(1992)
 #' time  <- rexp(100)

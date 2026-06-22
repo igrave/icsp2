@@ -354,8 +354,40 @@ test_that("PH model works with profile_ci", {
   ci_expected_2 <- matrix(
     c(0.125367883, -0.680544642, 0.623030116, -0.398065529),
     nrow = 2,
-    dimnames = list(c("x1", "x2"), c("2.5 %", "97.5 %"))
+    dimnames = list(c("x1", "x2"), c("2.5%", "97.5%"))
   )
   expect_equal(ci_res_2, ci_expected_2, tolerance = 1e-7)
   expect_equal(unname(ci_res_1), unname(ci_res_2), tolerance = 1e-2)
+})
+
+test_that("confint works as expected", {
+  set.seed(1950)
+  sim_data <- simIC_weib(n = 500, inspections = 3, inspectLength = 1)
+
+  result <- ic_sp_ph(
+    Surv(l, u, type = 'interval2') ~ x1 + x2,
+    data = sim_data,
+    control = ic_sp_control(derivMethod = c(12, 1))
+  )
+
+  ci_res <- confint.ic_sp2(result, type = "oim_curvature", typical = 0.5, large = 1.5)
+  
+  vcov_res <- vcov(result, type = "oim_curvature", typical = 0.5, large = 1.5)
+  ci_manual <- coef(result) + matrix(
+    rep(c(-qnorm(0.975), qnorm(0.975)), each = 2) * sqrt(diag(vcov_res)),
+    nrow = 2, dimnames = dimnames(ci_res)
+  )
+
+  expect_equal(ci_res, ci_manual, tolerance = 1e-6)
+  ci_expected <- matrix(
+    c(
+      0.1701936,
+      -0.6513221,
+      0.6332324,
+      -0.3672596
+    ),
+    nrow = 2,
+    dimnames = list(c("x1", "x2"), c("2.5%", "97.5%"))
+  )
+  expect_equal(ci_res, ci_expected, tolerance = 1e-6)
 })

@@ -21,7 +21,12 @@ Useful links:
 
 Authors:
 \itemize{
-  \item Clifford Anderson-Bergman
+  \item Isaac Gravestock \email{isaac.gravestock@gmail.com} (\href{https://orcid.org/0000-0003-0283-2065}{ORCID})
+}
+
+Other contributors:
+\itemize{
+  \item Clifford Anderson-Bergman (creator of icenReg) [contributor]
 }
 
 }

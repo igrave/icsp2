@@ -28,6 +28,10 @@ This is an internal implementation of right-censored logrank test
 for use within \link{ic_logrank} where many tests need to be performed
 efficiently for variance calculation.
 }
+\details{
+Compared to Survival::survdiff, this implementation is faster but does
+not have the same flexibility or checks.
+}
 \examples{
 set.seed(1992)
 time  <- rexp(100)
@@ -36,3 +40,4 @@ group <- sample(1:2, 100, replace = TRUE)
 cpp_logrank(time, event, group)
 
 }
+\keyword{internal}
