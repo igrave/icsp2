@@ -8,7 +8,7 @@
 An object of class \code{data.frame} with 731 rows and 3 columns.
 }
 \usage{
-IR_diabetes
+data(IR_diabetes)
 }
 \description{
 Data set contains interval censored survival time for time from onset of

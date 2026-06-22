@@ -2,6 +2,7 @@
 ^\.Rproj\.user$
 ^\.vscode$
 ^\.github$
+^\.git$
 ^local$
 ^debug$
 ^[.]?air[.]toml$

@@ -42,7 +42,11 @@ ic_sp_control <- function(
 
 
 #' Fit a semi-parametric model for interval-censored data
-#' @param formula A model formula with Surv(l, u, type = 'interval2') response and covariates on the right-hand side. May also contain `strata()` terms.
+#' 
+#' This function fits a semi-parametric model for interval-censored data using 
+#' either the proportional hazards or proportional odds model. Aliases `ic_sp_ph()` and `ic_sp_po()` are provided for convenience.
+#' 
+#' @param formula A model formula with `Surv(l, u, type = 'interval2')` response and covariates on the right-hand side. May also contain `strata()` terms.
 #' @param data A data frame containing the variables in the formula, including strata terms.
 #' @param weights Optional vector of weights for each observation, or the name of a variable in `data` containing the weights.
 #' @param subset Optional expression indicating a subset of the rows of `data` to be used in the fit.
@@ -51,10 +55,11 @@ ic_sp_control <- function(
 #'   This is normally determined by the function aliases `ic_sp_ph` and `ic_sp_po`.
 #' @param B A vector of length 2 giving the lower and upper bounds for the observation times. Default is c(0, 1).
 #' @param control A list of control settings, with defaults created by [ic_sp_control()].
-#' @param profile_ci Confidence level for profile likelihood confidence intervals. Default is 0.95. Set to `NULL` to skip profile likelihood confidence interval calculations.
+#' @param profile_ci Confidence level for profile likelihood confidence intervals based on the likelihood ratio.
+#'  Set to `NULL` to skip this profile likelihood confidence interval calculations.
 #' @param ... Additional arguments passed to control.
 #'
-#' @return A list containing the fitted model information, including coefficients, variance-covariance matrix, and other details.
+#' @return An object of class `"ic_sp2"`, a list containing the fitted model information, including coefficients, variance-covariance matrix, and other details.
 #' @export
 ic_sp2 <- function(
   formula,
@@ -65,7 +70,7 @@ ic_sp2 <- function(
   B = c(0, 1),
   control = ic_sp_control(...),
   model = c("ph", "po"),
-  profile_ci = 0,
+  profile_ci = NULL,
   ...
 ) {
   # Information about orginal call to function. Useful for expanding X in predict(fit, newdata)
@@ -129,8 +134,8 @@ ic_sp2 <- function(
 
   if (is.null(profile_ci)) {
     profile_ci <- 0
-  } else if (profile_ci < 0 || profile_ci > 1) {
-    stop("profile_ci must be between 0 and 1.")
+  } else if (profile_ci <= 0 || profile_ci >= 1) {
+    stop("profile_ci must be greater than 0 and less than 1.")
   }
 
   weights <- check_weights(mf)
@@ -212,6 +217,14 @@ ic_sp2 <- function(
 
 #' @rdname ic_sp2
 #' @export
+#' @examples
+#' fit_ph <- ic_sp_ph(Surv(l, u, type = "interval2") ~ grp, data = miceData, profile_ci = 0.95)
+#' summary(fit_ph)
+#' 
+#' # The CI for the regression parameter(s) based on the likelihood ratio:
+#' fit_ph$profile_ci
+#' 
+#' confint(fit_ph, level = 0.95)
 ic_sp_ph <- ic_sp2
 
 #' @rdname ic_sp2
@@ -346,7 +359,8 @@ ic_sp_po <- ic_sp2
 }
 
 
-#' Profile Likelihood Covariance for Semi-Parametric Models
+#' Profile Likelihood Variance and Confidence Intervals for Semi-Parametric Models
+#' 
 #' @param object Fitted model object from \code{ic_sp}
 #' @param type One of `"oim_curvature"` (default), `"oim_fixed"`, or `"opg_fixed"`. See details for explanation.
 #' @param fixed A fixed factor to multiply by `n^(-1/2)` to determin the perturbation size for fixed types.
@@ -354,8 +368,8 @@ ic_sp_po <- ic_sp2
 #' This is required for the `"oim_curvature"` type.
 #' @param large A large value for the regression parameters, used to determine the scale of `h_n`. Default is 2.
 #' This is required for the `"oim_curvature"` type.
-#' @param ... Unused.
-#' @return Variance-covariance matrix of the regression parameters.
+#' @param ... Unused in `vcov()`. In `confint()` it is used to specify the vcov parameters such as `type`, `fixed`, `typical`, and `large`.
+#' @return Variance-covariance matrix of the regression parameters or the confidence interval matrix.
 #' @details
 #' The covariance matrix is calculated using the profile likelihood approach.
 #' (Murphey and Vand Der Vaart 2000).
@@ -380,6 +394,8 @@ ic_sp_po <- ic_sp2
 #' instead of the observed information matrix for the covariance calculation.
 #'
 #' For larged values of `fixed` the model fitting may fail to converge.
+#' 
+#' The `confint()` method gives a Wald type CI and is based on [stats::confint] but allows the pass through of the `vcov.ic_sp2` parameters.
 #'
 #' @references
 #' Murphy, S. A., & Van Der Vaart, A. W. (2000). On Profile Likelihood. Journal of the American Statistical Association, 95(450), 449–465. https://doi.org/10.1080/01621459.2000.10474219
@@ -493,6 +509,31 @@ vcov.ic_sp2 <- function(
   result
 }
 
+#' @rdname vcov.ic_sp2
+#' @param parm a specification of which parameters are to be given confidence intervals, either a vector of numbers or a vector of names. If missing, all parameters are considered.
+#' @param level the confidence level required.
+#' @exportS3Method confint ic_sp2
+confint.ic_sp2 <- function (object, parm, level = 0.95, ...) 
+{
+    cf <- coef(object)
+    pnames <- names(cf)
+    if (missing(parm)) 
+        parm <- pnames
+    else if (is.numeric(parm)) 
+        parm <- pnames[parm]
+    V <- vcov(object, ...)
+    if (is.null(dimnames(V))) 
+        dimnames(V) <- list(pnames, pnames)
+    a <- (1 - level)/2
+    a <- c(a, 1 - a)
+    pct <- paste0(formatC(a * 100, format = "fg", width = 1, digits = 3), "%")
+    fac <- qnorm(a)
+    ci <- array(NA, dim = c(length(parm), 2L), dimnames = list(parm, 
+        pct))
+    ses <- sqrt(diag(V))[parm]
+    ci[] <- cf[parm] + ses %o% fac
+    ci
+}
 
 #' Refit the model with fixed regression parameters
 #' @param object Fitted model object from \code{ic_sp}

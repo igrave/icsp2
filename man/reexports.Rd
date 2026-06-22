@@ -12,6 +12,6 @@ These objects are imported from other packages. Follow the links
 below to see their documentation.
 
 \describe{
-  \item{survival}{\code{\link[survival]{strata}}, \code{\link[survival]{Surv}}}
+  \item{survival}{\code{\link[survival:strata]{strata()}}, \code{\link[survival:Surv]{Surv()}}}
 }}
 

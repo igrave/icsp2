@@ -2,9 +2,12 @@
 % Please edit documentation in R/ic_sp2.R
 \name{vcov.ic_sp2}
 \alias{vcov.ic_sp2}
-\title{Profile Likelihood Covariance for Semi-Parametric Models}
+\alias{confint.ic_sp2}
+\title{Profile Likelihood Variance and Confidence Intervals for Semi-Parametric Models}
 \usage{
 \method{vcov}{ic_sp2}(object, type = "oim_curvature", fixed = 5, typical = 1, large = 2, ...)
+
+\method{confint}{ic_sp2}(object, parm, level = 0.95, ...)
 }
 \arguments{
 \item{object}{Fitted model object from \code{ic_sp}}
@@ -19,13 +22,17 @@ This is required for the \code{"oim_curvature"} type.}
 \item{large}{A large value for the regression parameters, used to determine the scale of \code{h_n}. Default is 2.
 This is required for the \code{"oim_curvature"} type.}
 
-\item{...}{Unused.}
+\item{...}{Unused in \code{vcov()}. In \code{confint()} it is used to specify the vcov parameters such as \code{type}, \code{fixed}, \code{typical}, and \code{large}.}
+
+\item{parm}{a specification of which parameters are to be given confidence intervals, either a vector of numbers or a vector of names. If missing, all parameters are considered.}
+
+\item{level}{the confidence level required.}
 }
 \value{
-Variance-covariance matrix of the regression parameters.
+Variance-covariance matrix of the regression parameters or the confidence interval matrix.
 }
 \description{
-Profile Likelihood Covariance for Semi-Parametric Models
+Profile Likelihood Variance and Confidence Intervals for Semi-Parametric Models
 }
 \details{
 The covariance matrix is calculated using the profile likelihood approach.
@@ -51,6 +58,8 @@ parameter and the sample size \code{n}, but uses the outer product of gradients
 instead of the observed information matrix for the covariance calculation.
 
 For larged values of \code{fixed} the model fitting may fail to converge.
+
+The \code{confint()} method gives a Wald type CI and is based on \link[stats:confint]{stats::confint} but allows the pass through of the \code{vcov.ic_sp2} parameters.
 }
 \references{
 Murphy, S. A., & Van Der Vaart, A. W. (2000). On Profile Likelihood. Journal of the American Statistical Association, 95(450), 449–465. https://doi.org/10.1080/01621459.2000.10474219
