@@ -1,5 +1,5 @@
 Package: icsp2
-Title: Stratified interval-censored semi-parametric survival models
+Title: Stratified Interval-Censored Semi-Parametric Survival Models
 Version: 0.2.0
 Authors@R: 
     c(
@@ -7,7 +7,7 @@ Authors@R:
             comment = c(ORCID = "0000-0003-0283-2065")),
         person("Clifford", "Anderson-Bergman", comment = "creator of icenReg", role = "ctb")
     )
-Description: Semi-parametric survival models for interval censored data with stratification, based on the `icenReg` package, including model fitting and testing.
+Description: Semi-parametric survival models for interval censored data with stratification, based on the 'icenReg' package, including model fitting and testing.
 BugReports: https://github.com/igrave/icsp2/issues
 URL: https://igrave.github.io/icsp2/
 License: LGPL (>= 2.0, < 3)

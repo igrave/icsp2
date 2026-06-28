@@ -1,8 +1,8 @@
 ---
-title: "comparison"
+title: "Comparison with SAS and Stata"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{comparison}
+  %\VignetteIndexEntry{Comparison with SAS and Stata}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -17,15 +17,685 @@ knitr::opts_chunk$set(
 
 ```{r setup}
 library(icsp2)
+library(survival)
 ```
 
+## Simulation Framework
+
+We generate interval-censored data from a proportional hazards model with
+Weibull baseline, allowing per-stratum baseline parameters and treatment
+effects. We then compare:
+ 
+- **Log-rank test**: `ic_logrank()` vs SAS PROC ICLIFETEST
+- **PH model fit**: `ic_sp_ph()` vs Stata `stintcox`
+
+### Simulation wrapper
+
+```{r sim-wrapper}
+#' Simulate interval-censored trial data with optional stratification
+#'
+#' @param n_per_arm Sample size per treatment arm (total N = 2 * n_per_arm * n_strata)
+#' @param b_trt Treatment effect (log-HR). Scalar or vector of length n_strata.
+#' @param b_age Coefficient for continuous age covariate. NULL to omit age.
+#' @param strata_params List of lists, one per stratum, each with `shape` and `scale`.
+#'   If NULL, no stratification (single stratum with Weibull(2,2)).
+#' @param inspections Number of inspection times
+#' @param inspectLength Maximum gap between inspections
+#' @param seed Random seed
+#' @return A data.frame with columns: l, u, trt, and optionally age, strata
+sim_ic_trial <- function(
+  n_per_arm = 200,
+  b_trt = 0.5,
+  b_age = NULL,
+  strata_params = NULL,
+  inspections = 4,
+  inspectLength = 1.5,
+  seed = NULL
+) {
+  if (!is.null(seed)) set.seed(seed)
+
+  # Default: single stratum with Weibull(2, 2)
+  if (is.null(strata_params)) {
+    strata_params <- list(list(shape = 2, scale = 2))
+  }
+
+  n_strata <- length(strata_params)
+  b_trt <- rep_len(b_trt, n_strata)
+
+  all_data <- vector("list", n_strata)
+
+  for (s in seq_len(n_strata)) {
+    n_s <- 2 * n_per_arm
+    trt <- rep(c(0, 1), each = n_per_arm)
+    lin_pred <- trt * b_trt[s]
+
+    # Optional continuous covariate
+    age <- NULL
+    if (!is.null(b_age)) {
+      age <- rnorm(n_s)
+      lin_pred <- lin_pred + age * b_age
+    }
+
+    # Generate exact event times from PH Weibull
+    shape_s <- strata_params[[s]]$shape
+    scale_s <- strata_params[[s]]$scale
+    raw_p <- runif(n_s)
+    nu <- exp(lin_pred)
+    adj_p <- 1 - raw_p^(1 / nu)
+    true_times <- qweibull(adj_p, shape = shape_s, scale = scale_s)
+
+    # Interval censoring mechanism
+    obs_times <- runif(n_s, min = 0, max = inspectLength)
+    l <- rep(0, n_s)
+    u <- rep(Inf, n_s)
+
+    caught <- true_times < obs_times
+    u[caught] <- obs_times[caught]
+    l[!caught] <- obs_times[!caught]
+
+    if (inspections > 1) {
+      for (k in 2:inspections) {
+        old_obs <- obs_times
+        obs_times <- old_obs + runif(n_s, min = 0, max = inspectLength)
+        newly_caught <- true_times >= old_obs & true_times < obs_times
+        still_uncaught <- true_times >= obs_times
+        u[newly_caught] <- obs_times[newly_caught]
+        l[still_uncaught] <- obs_times[still_uncaught]
+      }
+    }
+
+    df_s <- data.frame(l = l, u = u, trt = trt)
+    if (!is.null(age)) df_s$age <- age
+    if (n_strata > 1) df_s$strata <- paste0("S", s)
+
+    all_data[[s]] <- df_s
+  }
+
+  out <- do.call(rbind, all_data)
+  if ("strata" %in% names(out)) out$strata <- factor(out$strata)
+  out$trt <- factor(out$trt)
+  rownames(out) <- NULL
+  out
+}
+```
+
+## Scenario Definitions
+
+```{r scenarios}
+scenarios <- list(
+  S1_null = list(
+    label = "Null effect",
+    b_trt = 0,
+    b_age = NULL,
+    strata_params = NULL,
+    inspections = 4,
+    inspectLength = 1.5
+  ),
+  S2_moderate = list(
+    label = "Moderate effect (HR~1.65)",
+    b_trt = 0.5,
+    b_age = NULL,
+    strata_params = NULL,
+    inspections = 4,
+    inspectLength = 1.5
+  ),
+  S3_strong = list(
+    label = "Strong effect (HR~2.72)",
+    b_trt = 1.0,
+    b_age = NULL,
+    strata_params = NULL,
+    inspections = 5,
+    inspectLength = 1.0
+  ),
+  S4_weak = list(
+    label = "Weak effect (HR~1.22)",
+    b_trt = 0.2,
+    b_age = NULL,
+    strata_params = list(list(shape = 1.5, scale = 3)),
+    inspections = 3,
+    inspectLength = 2.5
+  ),
+  S5_moderate_age = list(
+    label = "Moderate + continuous covariate",
+    b_trt = 0.5,
+    b_age = 0.3,
+    strata_params = NULL,
+    inspections = 4,
+    inspectLength = 1.5
+  ),
+  S6_strat_homo = list(
+    label = "Stratified, same baseline, homogeneous effect",
+    b_trt = 0.5,
+    b_age = NULL,
+    strata_params = list(
+      list(shape = 2, scale = 2),
+      list(shape = 2, scale = 2)
+    ),
+    inspections = 4,
+    inspectLength = 2.0
+  ),
+  S7_strat_diffbase = list(
+    label = "Stratified, different baselines, homogeneous effect",
+    b_trt = 0.5,
+    b_age = NULL,
+    strata_params = list(
+      list(shape = 2, scale = 2),
+      list(shape = 1, scale = 4)
+    ),
+    inspections = 3,
+    inspectLength = 2.0
+  ),
+  S8_strat_hetero = list(
+    label = "Stratified, different baselines, heterogeneous effect",
+    b_trt = c(0.7, 0),
+    b_age = NULL,
+    strata_params = list(
+      list(shape = 2, scale = 1.5),
+      list(shape = 3, scale = 3)
+    ),
+    inspections = 4,
+    inspectLength = 1.0
+  )
+)
+```
+
+## Generate Datasets
+
+We generate 100 replications per scenario with `n_per_arm = 200`.
+
+```{r generate-data}
+n_reps <- 100
+n_per_arm <- 200
+
+set.seed(2026)
+seeds <- sample.int(1e7, size = n_reps * length(scenarios))
+seed_matrix <- matrix(seeds, nrow = n_reps, ncol = length(scenarios))
+
+sim_datasets <- vector("list", length(scenarios))
+names(sim_datasets) <- names(scenarios)
+
+for (j in seq_along(scenarios)) {
+  sc <- scenarios[[j]]
+  sim_datasets[[j]] <- lapply(seq_len(n_reps), function(i) {
+    sim_ic_trial(
+      n_per_arm = n_per_arm,
+      b_trt = sc$b_trt,
+      b_age = sc$b_age,
+      strata_params = sc$strata_params,
+      inspections = sc$inspections,
+      inspectLength = sc$inspectLength,
+      seed = seed_matrix[i, j]
+    )
+  })
+}
+```
+
+## Run icsp2 Analyses
+
+### Log-rank tests
+
+```{r logrank-analysis}
+logrank_results <- vector("list", length(scenarios))
+names(logrank_results) <- names(scenarios)
+
+for (j in seq_along(scenarios)) {
+  sc <- scenarios[[j]]
+  has_strata <- !is.null(sc$strata_params) && length(sc$strata_params) > 1
+
+  logrank_results[[j]] <- lapply(sim_datasets[[j]], function(dat) {
+    if (has_strata) {
+      fml <- Surv(l, u, type = "interval2") ~ trt + strata(strata)
+    } else {
+      fml <- Surv(l, u, type = "interval2") ~ trt
+    }
+    ic_logrank(fml, data = dat, n_samples = 10000)
+  })
+}
+
+# Extract p-values
+logrank_pvalues <- lapply(logrank_results, function(res_list) {
+  vapply(res_list, function(x) x$p.value, numeric(1))
+})
+
+logrank_statistics <- lapply(logrank_results, function(res_list) {
+  vapply(res_list, function(x) x$statistic, numeric(1))
+})
+
+```
+
+
 ```{r}
+# read sas files
+
+```
+
+### PH model fits
+
+```{r ph-analysis}
+ph_results <- vector("list", length(scenarios))
+names(ph_results) <- names(scenarios)
+
+for (j in seq_along(scenarios)) {
+  sc <- scenarios[[j]]
+  has_strata <- !is.null(sc$strata_params) && length(sc$strata_params) > 1
+  has_age <- !is.null(sc$b_age)
+
+  ph_results[[j]] <- lapply(sim_datasets[[j]], function(dat) {
+    rhs <- "trt"
+    if (has_age) rhs <- paste(rhs, "+ age")
+    if (has_strata) rhs <- paste(rhs, "+ strata(strata)")
+    fml <- as.formula(paste("Surv(l, u, type = 'interval2') ~", rhs))
+    ic_sp_ph(fml, data = dat)
+  })
+}
+
+# Extract coefficients
+ph_coefs <- lapply(ph_results, function(res_list) {
+  t(vapply(
+    res_list,
+    function(x) x$coefficients,
+    numeric(length(res_list[[1]]$coefficients))
+  ))
+})
+```
+
+## Baseline Survival Plots
+
+For one representative dataset per scenario, we plot the estimated baseline
+survival from `ic_sp_ph()` against the true Weibull survival. For stratified
+scenarios, each stratum is plotted separately.
+
+```{r baseline-plots, fig.width=8, fig.height=10}
+par(mfrow = c(4, 2), mar = c(4, 4, 2, 1))
+
+for (j in seq_along(scenarios)) {
+  sc <- scenarios[[j]]
+  fit <- ph_results[[j]][[1]]  # first replication
+
+  strata_pars <- sc$strata_params
+  if (is.null(strata_pars)) strata_pars <- list(list(shape = 2, scale = 2))
+  n_strata <- length(strata_pars)
+
+  # Determine x-axis range from the fit
+  x_max <- max(unlist(lapply(fit$intervals, function(int) max(int[is.finite(int)]))))
+
+  plot(fit,
+    main = paste0("S", j, ": ", sc$label),
+    # xlim = c(0, x_max),
+    col = rep(seq_len(n_strata), each = 2),
+    lwd = 2
+  )
+
+  # Overlay true baseline survival for each stratum
+  t_seq <- seq(0, x_max, length.out = 200)
+  for (s in seq_len(n_strata)) {
+    true_surv <- pweibull(
+      t_seq,
+      shape = strata_pars[[s]]$shape,
+      scale = strata_pars[[s]]$scale,
+      lower.tail = FALSE
+    )
+    lines(t_seq, true_surv, col = s, lty = 2, lwd = 2)
+  }
+  legend("topright",
+    legend = c("Estimated", "True"),
+    lty = c(1, 2), lwd = 2, cex = 0.7, bty = "n"
+  )
+}
+```
+
+## Export Data for SAS and Stata
+
+Export each dataset as a CSV for analysis in external software.
+
+```{r export-data}
+export_dir <- "./local/sim_data"
+dir.create(export_dir, recursive = TRUE, showWarnings = FALSE)
+
+for (j in seq_along(scenarios)) {
+  sc_name <- names(scenarios)[j]
+  sc_dir <- file.path(export_dir, sc_name)
+  dir.create(sc_dir, recursive = TRUE, showWarnings = FALSE)
+  for (i in seq_along(sim_datasets[[j]])) {
+    write.csv(
+      sim_datasets[[j]][[i]],
+      file = file.path(sc_dir, sprintf("rep_%03d.csv", i)),
+      row.names = FALSE
+    )
+  }
+}
+```
+
+## SAS Code Template (PROC ICLIFETEST)
+
+The following SAS code can be used to process the exported datasets:
+
+```
+/* SAS macro for running PROC ICLIFETEST on all replications */
+%macro run_iclifetest(scenario, n_reps=100, has_strata=0);
+  %do i = 1 %to &n_reps;
+    proc import datafile="sim_data/&scenario/rep_%sysfunc(putn(&i, z3.)).csv"
+      out=work.rep_&i dbms=csv replace; run;
+
+    /* Convert u from character to numeric (Inf -> .) */
+    data work.rep_&i;
+      set work.rep_&i(rename=(u=u_char));
+      if upcase(u_char) = "INF" then u = .;
+      else u = input(u_char, best.);
+      drop u_char;
+    run;
+
+    proc iclifetest data=work.rep_&i
+      %if &i = 1 %then %do;
+        plots=(survival) outsurv=work.surv_1
+      %end;
+      ;
+      time (l, u);
+      %if &has_strata = 1 %then %do;
+        strata strata;
+      %end;
+      test trt;
+      ods output LogRankTest=work.lr_&i;
+    run;
+
+    /* Add replication index */
+    data work.lr_&i;
+      set work.lr_&i;
+      rep = &i;
+    run;
+  %end;
+
+  /* Stack all log-rank results and export */
+  data work.&scenario._lr;
+    set work.lr_1 - work.lr_&n_reps;
+  run;
+
+  proc export data=work.&scenario._lr
+    outfile="sim_data/&scenario/sas_logrank.csv"
+    dbms=csv replace;
+  run;
+
+  /* Export NPMLE survival from first replication */
+  proc export data=work.surv_1
+    outfile="sim_data/&scenario/sas_npmle_surv.csv"
+    dbms=csv replace;
+  run;
+%mend;
+
+%run_iclifetest(S1_null, has_strata=0);
+%run_iclifetest(S2_moderate, has_strata=0);
+%run_iclifetest(S3_strong, has_strata=0);
+%run_iclifetest(S4_weak, has_strata=0);
+%run_iclifetest(S5_moderate_age, has_strata=0);
+%run_iclifetest(S6_strat_homo, has_strata=1);
+%run_iclifetest(S7_strat_diffbase, has_strata=1);
+%run_iclifetest(S8_strat_hetero, has_strata=1);
+```
+
+## Stata Code Template (stintcox)
+
+```
+/* Stata do-file for running stintcox on all replications */
+program define run_stintcox
+  args scenario n_reps has_strata has_age
+
+  local n_coefs = 1 + ("`has_age'" == "1")
+
+  forvalues i = 1/`n_reps' {
+    local fname "sim_data/`scenario'/rep_`=string(`i', "%03.0f")'.csv"
+    import delimited "`fname'", clear
+
+    * Handle right-censored (Inf) values
+    replace u = . if u == "Inf"
+    destring u, replace
+
+    stintcox trt `=cond("`has_age'"=="1", "age", "")' ///
+      , interval(l u) `=cond("`has_strata'"=="1", "strata(strata)", "")'
+
+    * Store coefficients and SEs
+    matrix b = e(b)
+    matrix V = e(V)
+    matrix se = J(1, `n_coefs', .)
+    forvalues c = 1/`n_coefs' {
+      matrix se[1, `c'] = sqrt(V[`c', `c'])
+    }
+
+    if `i' == 1 {
+      matrix all_b = b
+      matrix all_se = se
+    }
+    else {
+      matrix all_b = all_b \ b
+      matrix all_se = all_se \ se
+    }
+
+    * Save baseline survival from first replication
+    if `i' == 1 {
+      predict double surv0, basesurv
+      predict double haz0, basehaz
+      gen double time_grid = _t
+      keep time_grid surv0 haz0
+      duplicates drop
+      sort time_grid
+      export delimited "sim_data/`scenario'/stata_baseline.csv", replace
+    }
+  }
+
+  * Export coefficient and SE matrices to CSV
+  clear
+  svmat all_b, names(b)
+  svmat all_se, names(se)
+  gen rep = _n
+  export delimited "sim_data/`scenario'/stata_coefs.csv", replace
+end
+
+run_stintcox S1_null 100 0 0
+run_stintcox S2_moderate 100 0 0
+run_stintcox S3_strong 100 0 0
+run_stintcox S4_weak 100 0 0
+run_stintcox S5_moderate_age 100 0 1
+run_stintcox S6_strat_homo 100 1 0
+run_stintcox S7_strat_diffbase 100 1 0
+run_stintcox S8_strat_hetero 100 1 0
+```
+
+## Summary of Results
+
+### Load external results
+
+```{r load-external}
+sim_data_dir <- "./local/sim_data"
+
+# --- SAS log-rank results ---
+sas_logrank <- lapply(names(scenarios), function(sc_name) {
+  f <- file.path(sim_data_dir, sc_name, "sas_logrank.csv")
+  if (file.exists(f)) {
+    d <- read.csv(f)
+    d$scenario <- sc_name
+    d
+  }
+})
+sas_logrank <- do.call(rbind, sas_logrank)
+
+# --- Stata coefficient results ---
+stata_coefs <- lapply(names(scenarios), function(sc_name) {
+  f <- file.path(sim_data_dir, sc_name, "stata_coefs.csv")
+  if (file.exists(f)) {
+    d <- read.csv(f)
+    d$scenario <- sc_name
+    d
+  }
+})
+stata_coefs <- do.call(rbind, stata_coefs)
+
+# --- SAS NPMLE survival (rep 1) ---
+sas_npmle <- lapply(names(scenarios), function(sc_name) {
+  f <- file.path(sim_data_dir, sc_name, "sas_npmle_surv.csv")
+  if (file.exists(f)) {
+    d <- read.csv(f)
+    d$scenario <- sc_name
+    d
+  }
+})
+sas_npmle <- do.call(rbind, sas_npmle)
+
+# --- Stata baseline survival (rep 1) ---
+stata_baseline <- lapply(names(scenarios), function(sc_name) {
+  f <- file.path(sim_data_dir, sc_name, "stata_baseline.csv")
+  if (file.exists(f)) {
+    d <- read.csv(f)
+    d$scenario <- sc_name
+    d
+  }
+})
+stata_baseline <- do.call(rbind, stata_baseline)
+```
+
+### Log-rank comparison (icsp2 vs SAS)
+
+```{r logrank-comparison}
+# Extract icsp2 statistics and p-values per replication
+icsp2_logrank <- lapply(seq_along(scenarios), function(j) {
+  data.frame(
+    scenario = names(scenarios)[j],
+    rep = seq_along(logrank_results[[j]]),
+    icsp2_stat = vapply(logrank_results[[j]], function(x) x$statistic, numeric(1)),
+    icsp2_pval = vapply(logrank_results[[j]], function(x) x$p.value, numeric(1))
+  )
+})
+icsp2_logrank <- do.call(rbind, icsp2_logrank)
+
+# Merge with SAS results if available
+if (!is.null(sas_logrank) && nrow(sas_logrank) > 0) {
+  lr_comparison <- merge(
+    icsp2_logrank,
+    sas_logrank[c("scenario", "rep", "ChiSq", "ProbChiSq")],
+    by = c("scenario", "rep"),
+    all.x = TRUE
+  )
+  names(lr_comparison)[names(lr_comparison) == "ChiSq"] <- "sas_stat"
+  names(lr_comparison)[names(lr_comparison) == "ProbChiSq"] <- "sas_pval"
+
+  # Per-scenario agreement summary
+  lr_agreement <- do.call(rbind, lapply(split(lr_comparison, lr_comparison$scenario), function(d) {
+    data.frame(
+      scenario = d$scenario[1],
+      max_abs_diff_stat = max(abs(d$icsp2_stat - d$sas_stat), na.rm = TRUE),
+      max_abs_diff_pval = max(abs(d$icsp2_pval - d$sas_pval), na.rm = TRUE),
+      cor_stat = cor(d$icsp2_stat, d$sas_stat, use = "complete.obs"),
+      cor_pval = cor(d$icsp2_pval, d$sas_pval, use = "complete.obs")
+    )
+  }))
+  rownames(lr_agreement) <- NULL
+  lr_agreement
+} else {
+  icsp2_logrank
+}
+```
+
+### PH coefficient comparison (icsp2 vs Stata)
+
+```{r ph-comparison}
+# icsp2 PH summary
+ph_summary <- lapply(seq_along(scenarios), function(j) {
+  coefs <- ph_coefs[[j]]
+  sc <- scenarios[[j]]
+  true_vals <- sc$b_trt[1]
+  if (!is.null(sc$b_age)) true_vals <- c(true_vals, sc$b_age)
+  data.frame(
+    scenario = names(scenarios)[j],
+    covariate = colnames(coefs),
+    icsp2_mean = colMeans(coefs),
+    icsp2_sd = apply(coefs, 2, sd),
+    true_value = true_vals
+  )
+})
+ph_summary <- do.call(rbind, ph_summary)
+rownames(ph_summary) <- NULL
+
+# Merge Stata results if available
+if (!is.null(stata_coefs) && nrow(stata_coefs) > 0) {
+  stata_summary <- lapply(split(stata_coefs, stata_coefs$scenario), function(d) {
+    b_cols <- grep("^b", names(d), value = TRUE)
+    data.frame(
+      scenario = d$scenario[1],
+      covariate = b_cols,
+      stata_mean = colMeans(d[b_cols], na.rm = TRUE),
+      stata_sd = apply(d[b_cols], 2, sd, na.rm = TRUE)
+    )
+  })
+  stata_summary <- do.call(rbind, stata_summary)
+  rownames(stata_summary) <- NULL
+  ph_summary <- merge(ph_summary, stata_summary, by = c("scenario", "covariate"),
+    all.x = TRUE
+  )
+}
+
+ph_summary
+```
+
+### Baseline survival comparison plots
+
+```{r baseline-comparison-plots, fig.width=8, fig.height=10}
+par(mfrow = c(4, 2), mar = c(4, 4, 2, 1))
+
+for (j in seq_along(scenarios)) {
+  sc <- scenarios[[j]]
+  sc_name <- names(scenarios)[j]
+  fit <- ph_results[[j]][[1]]
+
+  strata_pars <- sc$strata_params
+  if (is.null(strata_pars)) strata_pars <- list(list(shape = 2, scale = 2))
+  n_strata <- length(strata_pars)
+
+  x_max <- max(unlist(lapply(fit$intervals, function(int) max(int[is.finite(int)]))))
+
+  plot(fit,
+    main = paste0("S", j, ": ", sc$label),
+    xlim = c(0, x_max),
+    col = rep(seq_len(n_strata), each = 2),
+    lwd = 2
+  )
+
+  # True baseline
+  t_seq <- seq(0, x_max, length.out = 200)
+  for (s in seq_len(n_strata)) {
+    true_surv <- pweibull(t_seq, shape = strata_pars[[s]]$shape,
+      scale = strata_pars[[s]]$scale, lower.tail = FALSE)
+    lines(t_seq, true_surv, col = s, lty = 2, lwd = 2)
+  }
+
+  # Overlay SAS NPMLE if available
+  if (!is.null(sas_npmle)) {
+    sas_sc <- sas_npmle[sas_npmle$scenario == sc_name, ]
+    if (nrow(sas_sc) > 0) {
+      lines(sas_sc$time, sas_sc$survival, col = "blue", lty = 3, lwd = 2)
+    }
+  }
+
+  # Overlay Stata baseline if available
+  if (!is.null(stata_baseline)) {
+    stata_sc <- stata_baseline[stata_baseline$scenario == sc_name, ]
+    if (nrow(stata_sc) > 0) {
+      lines(stata_sc$time_grid, stata_sc$surv0, col = "red", lty = 4, lwd = 2)
+    }
+  }
+
+  legend("topright",
+    legend = c("icsp2", "True", "SAS", "Stata"),
+    lty = c(1, 2, 3, 4), col = c("black", "black", "blue", "red"),
+    lwd = 2, cex = 0.6, bty = "n"
+  )
+}
+```
+
+## IDU Dataset Comparison (Stata)
+
+```{r idu-comparison}
 library(haven)
 idu <- read_dta("./local/idu.dta")
-```
 
-```{r}
-idu_1 <- ic_sp_ph(
+idu_fit <- ic_sp_ph(
   Surv(ltime, rtime, type = "interval2") ~ age_mean +
     male +
     needle +
@@ -33,10 +703,10 @@ idu_1 <- ic_sp_ph(
     jail,
   data = idu
 )
-idu_1_res <- summary(idu_1)
-within(as.data.frame(idu_1_res$coef_matrix), {
-  HR = exp(Estimate)
-  HR_u = exp(Estimate + 1.96 * Std.Error)
-  HR_l = exp(Estimate - 1.96 * Std.Error)
+idu_res <- summary(idu_fit)
+within(as.data.frame(idu_res$coef_matrix), {
+  HR <- exp(Estimate)
+  HR_u <- exp(Estimate + 1.96 * Std.Error)
+  HR_l <- exp(Estimate - 1.96 * Std.Error)
 })
 ```

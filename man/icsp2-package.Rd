@@ -4,9 +4,9 @@
 \name{icsp2-package}
 \alias{icsp2}
 \alias{icsp2-package}
-\title{icsp2: Stratified interval-censored semi-parametric survival models}
+\title{icsp2: Stratified Interval-Censored Semi-Parametric Survival Models}
 \description{
-Semi-parametric survival models for interval censored data with stratification, based on the `icenReg` package, including model fitting and testing.
+Semi-parametric survival models for interval censored data with stratification, based on the 'icenReg' package, including model fitting and testing.
 }
 \seealso{
 Useful links:
