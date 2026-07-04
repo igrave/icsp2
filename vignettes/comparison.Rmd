@@ -288,7 +288,7 @@ for (j in seq_along(scenarios)) {
     ic_sp_ph(fml, data = dat)
   })
 }
-
+})
 # Extract coefficients
 ph_coefs <- lapply(ph_results, function(res_list) {
   t(vapply(
@@ -504,11 +504,11 @@ run_stintcox S8_strat_hetero 100 1 0
 ### Load external results
 
 ```{r load-external}
-sim_data_dir <- "./local/sim_data"
+sim_data_dir <- "./comparison_sim/"
 
 # --- SAS log-rank results ---
 sas_logrank <- lapply(names(scenarios), function(sc_name) {
-  f <- file.path(sim_data_dir, sc_name, "sas_logrank.csv")
+  f <- file.path(sim_data_dir, "output", sc_name, "sas_logrank.csv")
   if (file.exists(f)) {
     d <- read.csv(f)
     d$scenario <- sc_name
@@ -519,14 +519,15 @@ sas_logrank <- do.call(rbind, sas_logrank)
 
 # --- Stata coefficient results ---
 stata_coefs <- lapply(names(scenarios), function(sc_name) {
-  f <- file.path(sim_data_dir, sc_name, "stata_coefs.csv")
+  f <- file.path(sim_data_dir, "output_stata", sc_name, "stata_coefs10k.csv")
+  list.files()
   if (file.exists(f)) {
     d <- read.csv(f)
     d$scenario <- sc_name
     d
   }
 })
-stata_coefs <- do.call(rbind, stata_coefs)
+stata_coefs <- do.call(rbind, lapply(stata_coefs, \(x) x[, c("b1", "se1", "rep", "scenario")]))
 
 # --- SAS NPMLE survival (rep 1) ---
 sas_npmle <- lapply(names(scenarios), function(sc_name) {
@@ -550,6 +551,33 @@ stata_baseline <- lapply(names(scenarios), function(sc_name) {
 })
 stata_baseline <- do.call(rbind, stata_baseline)
 ```
+
+```{r}
+
+library(ggplot2)
+ggplot(
+  data.frame(
+    scenario = gl(8, 100, labels = names(scenarios)),
+    SAS_pval = pchisq(sas_logrank$ChiSquare, df = 1,  lower.tail = FALSE),
+    icsp2_pval = icsp2_logrank$icsp2_pval
+  ),
+  aes(
+    x = (SAS_pval + icsp2_pval)/2,
+    y = SAS_pval - icsp2_pval,
+  ) 
+) + 
+  annotate("ribbon", xmin = -Inf, x=0:1, ymin = -0.001, ymax = 0.001, fill = rgb(1, 0, 0, 0.5)) +
+  geom_point(alpha = 0.4) +
+  facet_wrap(~scenario, nrow = 2) +
+  theme_bw() +
+  labs(
+    x = "(SAS + R)/2",
+    y = "SAS - R"
+  )
+ggsave("icsp2_v_sas.png", dpi = 300, width = 9.15, height = 4.32, units = "in")
+  
+```
+
 
 ### Log-rank comparison (icsp2 vs SAS)
 
@@ -597,6 +625,45 @@ if (!is.null(sas_logrank) && nrow(sas_logrank) > 0) {
 
 ```{r ph-comparison}
 # icsp2 PH summary
+
+icsp2_coef <- lapply(ph_coefs, function(x) {
+  two_vars <- all(dim(x) == c(100, 2))
+  coef <- if (two_vars) {
+    x[, 1]
+  } else {
+    x[1, ]
+  }
+  data.frame(
+    coef = coef, rep = seq_along(coef)
+  )
+}
+) |> dplyr::bind_rows(.id = "scenario")
+
+
+coefs_res <- left_join(stata_coefs, icsp2_coef, by = c("scenario", "rep"))
+
+
+library(ggplot2)
+ggplot(
+  coefs_res,
+  aes(
+    x = (b1 + coef)/2,
+    y = b1 - coef,
+  ) 
+) + 
+  geom_hline(colour = rgb(1, 0, 0, 0.5), yintercept = 0, linewidth = 20) +
+  # annotate("ribbon", xmin = -Inf, x=0:1, ymin = -0.0001, ymax = 0.0001, fill = rgb(1, 0, 0, 0.5)) +
+  geom_point(alpha = 0.4) +
+  facet_wrap(~scenario, nrow = 2) +
+  theme_bw() +
+  labs(
+    x = "(stata + R)/2",
+    y = "stata - R"
+  )
+ggsave("icsp2_v_stata.png", dpi = 600, width = 9.15, height = 4.32, units = "in")
+
+
+
 ph_summary <- lapply(seq_along(scenarios), function(j) {
   coefs <- ph_coefs[[j]]
   sc <- scenarios[[j]]
