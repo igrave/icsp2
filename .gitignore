@@ -11,4 +11,4 @@ local/
 *.Rproj
 docs
 inst/doc
-* .pdf
+*.pdf
