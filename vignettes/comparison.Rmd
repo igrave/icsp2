@@ -11,8 +11,9 @@ vignette: >
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  eval = FALSE
+  eval = TRUE
 )
+RhpcBLASctl::omp_set_num_threads(2)
 ```
 
 ```{r setup}
@@ -20,7 +21,42 @@ library(icsp2)
 library(survival)
 ```
 
-## Simulation Framework
+
+# IDU Dataset Comparison (Stata)
+
+```{r, eval = FALSE}
+idu_url <- "https://www.stata-press.com/data/r19/idu.dta"
+idu <- as.data.frame(haven::read_dta(idu_url))
+```
+
+
+```{r, hide = TRUE}
+# idu <- as.data.frame(haven::read_dta(idu_url))
+# saveRDS(idu, file = "inst/ext_data/idu.rds")
+idu_path <- system.file(package = "icsp2", file.path("extdata", "idu.rds"))
+if (file.exists(idu_path)) idu <- readRDS(idu_path)
+```
+```{r idu-comparison}
+idu_fit <- ic_sp_ph(
+  Surv(ltime, rtime, type = "interval2") ~ age_mean +
+    male +
+    needle +
+    inject +
+    jail,
+  data = idu
+)
+idu_res <- summary(idu_fit)
+within(as.data.frame(idu_res$coef_matrix), {
+  HR <- exp(Estimate)
+  HR_u <- exp(Estimate + 1.96 * Std.Error)
+  HR_l <- exp(Estimate - 1.96 * Std.Error)
+})
+```
+
+# Simulation Comparison
+
+This is a work in progress and will be improve to provide a more comprehensive 
+comparison.
 
 We generate interval-censored data from a proportional hazards model with
 Weibull baseline, allowing per-stratum baseline parameters and treatment
@@ -29,7 +65,19 @@ effects. We then compare:
 - **Log-rank test**: `ic_logrank()` vs SAS PROC ICLIFETEST
 - **PH model fit**: `ic_sp_ph()` vs Stata `stintcox`
 
-### Simulation wrapper
+### Scenarios
+
+We generate 100 datasets from each of the following scenarios
+
+- S1: Null effect
+- S2: Moderate effect (HR~1.65)
+- S3: Strong effect (HR~2.72)
+- S4: Weak effect (HR~1.22)
+- S5: Moderate + continuous covariate
+- S6: Stratified, same baseline, homogeneous effect
+- S7: Stratified, different baselines, homogeneous effect
+- S8: Stratified, different baselines, heterogeneous effect
+
 
 ```{r sim-wrapper}
 #' Simulate interval-censored trial data with optional stratification
@@ -199,7 +247,7 @@ scenarios <- list(
 )
 ```
 
-## Generate Datasets
+### Generate Datasets
 
 We generate 100 replications per scenario with `n_per_arm = 200`.
 
@@ -229,6 +277,26 @@ for (j in seq_along(scenarios)) {
   })
 }
 ```
+
+```{r export-data, eval = FALSE}
+export_dir <- "./local/sim_data"
+dir.create(export_dir, recursive = TRUE, showWarnings = FALSE)
+
+for (j in seq_along(scenarios)) {
+  sc_name <- names(scenarios)[j]
+  sc_dir <- file.path(export_dir, sc_name)
+  dir.create(sc_dir, recursive = TRUE, showWarnings = FALSE)
+  for (i in seq_along(sim_datasets[[j]])) {
+    write.csv(
+      sim_datasets[[j]][[i]],
+      file = file.path(sc_dir, sprintf("rep_%03d.csv", i)),
+      row.names = FALSE
+    )
+  }
+}
+```
+
+
 
 ## Run icsp2 Analyses
 
@@ -264,11 +332,6 @@ logrank_statistics <- lapply(logrank_results, function(res_list) {
 ```
 
 
-```{r}
-# read sas files
-
-```
-
 ### PH model fits
 
 ```{r ph-analysis}
@@ -288,7 +351,7 @@ for (j in seq_along(scenarios)) {
     ic_sp_ph(fml, data = dat)
   })
 }
-})
+
 # Extract coefficients
 ph_coefs <- lapply(ph_results, function(res_list) {
   t(vapply(
@@ -299,74 +362,118 @@ ph_coefs <- lapply(ph_results, function(res_list) {
 })
 ```
 
-## Baseline Survival Plots
 
-For one representative dataset per scenario, we plot the estimated baseline
-survival from `ic_sp_ph()` against the true Weibull survival. For stratified
-scenarios, each stratum is plotted separately.
+### Results
 
-```{r baseline-plots, fig.width=8, fig.height=10}
-par(mfrow = c(4, 2), mar = c(4, 4, 2, 1))
 
-for (j in seq_along(scenarios)) {
-  sc <- scenarios[[j]]
-  fit <- ph_results[[j]][[1]]  # first replication
+### Load external results
 
-  strata_pars <- sc$strata_params
-  if (is.null(strata_pars)) strata_pars <- list(list(shape = 2, scale = 2))
-  n_strata <- length(strata_pars)
+```{r load-external}
+sim_data_dir <- "./comparison_sim/"
 
-  # Determine x-axis range from the fit
-  x_max <- max(unlist(lapply(fit$intervals, function(int) max(int[is.finite(int)]))))
-
-  plot(fit,
-    main = paste0("S", j, ": ", sc$label),
-    # xlim = c(0, x_max),
-    col = rep(seq_len(n_strata), each = 2),
-    lwd = 2
-  )
-
-  # Overlay true baseline survival for each stratum
-  t_seq <- seq(0, x_max, length.out = 200)
-  for (s in seq_len(n_strata)) {
-    true_surv <- pweibull(
-      t_seq,
-      shape = strata_pars[[s]]$shape,
-      scale = strata_pars[[s]]$scale,
-      lower.tail = FALSE
-    )
-    lines(t_seq, true_surv, col = s, lty = 2, lwd = 2)
+# --- SAS log-rank results ---
+sas_logrank <- lapply(names(scenarios), function(sc_name) {
+  f <- file.path(sim_data_dir, "output", sc_name, "sas_logrank.csv")
+  if (file.exists(f)) {
+    d <- read.csv(f)
+    d$scenario <- sc_name
+    d
   }
-  legend("topright",
-    legend = c("Estimated", "True"),
-    lty = c(1, 2), lwd = 2, cex = 0.7, bty = "n"
-  )
-}
+})
+sas_logrank <- do.call(rbind, sas_logrank)
+
+# --- Stata coefficient results ---
+stata_coefs <- lapply(names(scenarios), function(sc_name) {
+  f <- file.path(sim_data_dir, "output_stata", sc_name, "stata_coefs10k.csv")
+  list.files()
+  if (file.exists(f)) {
+    d <- read.csv(f)
+    d$scenario <- sc_name
+    d
+  }
+})
+stata_coefs <- do.call(rbind, lapply(stata_coefs, \(x) x[, c("b1", "se1", "rep", "scenario")]))
 ```
 
-## Export Data for SAS and Stata
 
-Export each dataset as a CSV for analysis in external software.
 
-```{r export-data}
-export_dir <- "./local/sim_data"
-dir.create(export_dir, recursive = TRUE, showWarnings = FALSE)
+```{r}
 
-for (j in seq_along(scenarios)) {
-  sc_name <- names(scenarios)[j]
-  sc_dir <- file.path(export_dir, sc_name)
-  dir.create(sc_dir, recursive = TRUE, showWarnings = FALSE)
-  for (i in seq_along(sim_datasets[[j]])) {
-    write.csv(
-      sim_datasets[[j]][[i]],
-      file = file.path(sc_dir, sprintf("rep_%03d.csv", i)),
-      row.names = FALSE
-    )
-  }
-}
+library(ggplot2)
+ggplot(
+  data.frame(
+    scenario = gl(8, 100, labels = names(scenarios)),
+    SAS_pval = pchisq(sas_logrank$ChiSquare, df = 1,  lower.tail = FALSE),
+    icsp2_pval = icsp2_logrank$icsp2_pval
+  ),
+  aes(
+    x = (SAS_pval + icsp2_pval)/2,
+    y = SAS_pval - icsp2_pval,
+  ) 
+) + 
+  annotate("ribbon", xmin = -Inf, x=0:1, ymin = -0.001, ymax = 0.001, fill = rgb(1, 0, 0, 0.5)) +
+  geom_point(alpha = 0.4) +
+  facet_wrap(~scenario, nrow = 2) +
+  theme_bw() +
+  labs(
+    x = "(SAS + R)/2",
+    y = "SAS - R"
+  )
+ggsave("icsp2_v_sas.png", dpi = 300, width = 9.15, height = 4.32, units = "in")
+  
 ```
 
-## SAS Code Template (PROC ICLIFETEST)
+
+
+
+### PH coefficient comparison (icsp2 vs Stata)
+
+```{r ph-comparison}
+# icsp2 PH summary
+
+icsp2_coef <- lapply(ph_coefs, function(x) {
+  two_vars <- all(dim(x) == c(100, 2))
+  coef <- if (two_vars) {
+    x[, 1]
+  } else {
+    x[1, ]
+  }
+  data.frame(
+    coef = coef, rep = seq_along(coef)
+  )
+}
+) |> dplyr::bind_rows(.id = "scenario")
+
+
+coefs_res <- left_join(stata_coefs, icsp2_coef, by = c("scenario", "rep"))
+
+
+library(ggplot2)
+ggplot(
+  coefs_res,
+  aes(
+    x = (b1 + coef)/2,
+    y = b1 - coef,
+  ) 
+) + 
+  geom_hline(colour = rgb(1, 0, 0, 0.5), yintercept = 0, linewidth = 20) +
+  # annotate("ribbon", xmin = -Inf, x=0:1, ymin = -0.0001, ymax = 0.0001, fill = rgb(1, 0, 0, 0.5)) +
+  geom_point(alpha = 0.4) +
+  facet_wrap(~scenario, nrow = 2) +
+  theme_bw() +
+  labs(
+    x = "(stata + R)/2",
+    y = "stata - R"
+  )
+ggsave("icsp2_v_stata.png", dpi = 600, width = 9.15, height = 4.32, units = "in")
+
+```
+
+
+## Appendix
+
+
+### SAS Code Template (PROC ICLIFETEST)
 
 The following SAS code can be used to process the exported datasets:
 
@@ -497,283 +604,4 @@ run_stintcox S5_moderate_age 100 0 1
 run_stintcox S6_strat_homo 100 1 0
 run_stintcox S7_strat_diffbase 100 1 0
 run_stintcox S8_strat_hetero 100 1 0
-```
-
-## Summary of Results
-
-### Load external results
-
-```{r load-external}
-sim_data_dir <- "./comparison_sim/"
-
-# --- SAS log-rank results ---
-sas_logrank <- lapply(names(scenarios), function(sc_name) {
-  f <- file.path(sim_data_dir, "output", sc_name, "sas_logrank.csv")
-  if (file.exists(f)) {
-    d <- read.csv(f)
-    d$scenario <- sc_name
-    d
-  }
-})
-sas_logrank <- do.call(rbind, sas_logrank)
-
-# --- Stata coefficient results ---
-stata_coefs <- lapply(names(scenarios), function(sc_name) {
-  f <- file.path(sim_data_dir, "output_stata", sc_name, "stata_coefs10k.csv")
-  list.files()
-  if (file.exists(f)) {
-    d <- read.csv(f)
-    d$scenario <- sc_name
-    d
-  }
-})
-stata_coefs <- do.call(rbind, lapply(stata_coefs, \(x) x[, c("b1", "se1", "rep", "scenario")]))
-
-# --- SAS NPMLE survival (rep 1) ---
-sas_npmle <- lapply(names(scenarios), function(sc_name) {
-  f <- file.path(sim_data_dir, sc_name, "sas_npmle_surv.csv")
-  if (file.exists(f)) {
-    d <- read.csv(f)
-    d$scenario <- sc_name
-    d
-  }
-})
-sas_npmle <- do.call(rbind, sas_npmle)
-
-# --- Stata baseline survival (rep 1) ---
-stata_baseline <- lapply(names(scenarios), function(sc_name) {
-  f <- file.path(sim_data_dir, sc_name, "stata_baseline.csv")
-  if (file.exists(f)) {
-    d <- read.csv(f)
-    d$scenario <- sc_name
-    d
-  }
-})
-stata_baseline <- do.call(rbind, stata_baseline)
-```
-
-```{r}
-
-library(ggplot2)
-ggplot(
-  data.frame(
-    scenario = gl(8, 100, labels = names(scenarios)),
-    SAS_pval = pchisq(sas_logrank$ChiSquare, df = 1,  lower.tail = FALSE),
-    icsp2_pval = icsp2_logrank$icsp2_pval
-  ),
-  aes(
-    x = (SAS_pval + icsp2_pval)/2,
-    y = SAS_pval - icsp2_pval,
-  ) 
-) + 
-  annotate("ribbon", xmin = -Inf, x=0:1, ymin = -0.001, ymax = 0.001, fill = rgb(1, 0, 0, 0.5)) +
-  geom_point(alpha = 0.4) +
-  facet_wrap(~scenario, nrow = 2) +
-  theme_bw() +
-  labs(
-    x = "(SAS + R)/2",
-    y = "SAS - R"
-  )
-ggsave("icsp2_v_sas.png", dpi = 300, width = 9.15, height = 4.32, units = "in")
-  
-```
-
-
-### Log-rank comparison (icsp2 vs SAS)
-
-```{r logrank-comparison}
-# Extract icsp2 statistics and p-values per replication
-icsp2_logrank <- lapply(seq_along(scenarios), function(j) {
-  data.frame(
-    scenario = names(scenarios)[j],
-    rep = seq_along(logrank_results[[j]]),
-    icsp2_stat = vapply(logrank_results[[j]], function(x) x$statistic, numeric(1)),
-    icsp2_pval = vapply(logrank_results[[j]], function(x) x$p.value, numeric(1))
-  )
-})
-icsp2_logrank <- do.call(rbind, icsp2_logrank)
-
-# Merge with SAS results if available
-if (!is.null(sas_logrank) && nrow(sas_logrank) > 0) {
-  lr_comparison <- merge(
-    icsp2_logrank,
-    sas_logrank[c("scenario", "rep", "ChiSq", "ProbChiSq")],
-    by = c("scenario", "rep"),
-    all.x = TRUE
-  )
-  names(lr_comparison)[names(lr_comparison) == "ChiSq"] <- "sas_stat"
-  names(lr_comparison)[names(lr_comparison) == "ProbChiSq"] <- "sas_pval"
-
-  # Per-scenario agreement summary
-  lr_agreement <- do.call(rbind, lapply(split(lr_comparison, lr_comparison$scenario), function(d) {
-    data.frame(
-      scenario = d$scenario[1],
-      max_abs_diff_stat = max(abs(d$icsp2_stat - d$sas_stat), na.rm = TRUE),
-      max_abs_diff_pval = max(abs(d$icsp2_pval - d$sas_pval), na.rm = TRUE),
-      cor_stat = cor(d$icsp2_stat, d$sas_stat, use = "complete.obs"),
-      cor_pval = cor(d$icsp2_pval, d$sas_pval, use = "complete.obs")
-    )
-  }))
-  rownames(lr_agreement) <- NULL
-  lr_agreement
-} else {
-  icsp2_logrank
-}
-```
-
-### PH coefficient comparison (icsp2 vs Stata)
-
-```{r ph-comparison}
-# icsp2 PH summary
-
-icsp2_coef <- lapply(ph_coefs, function(x) {
-  two_vars <- all(dim(x) == c(100, 2))
-  coef <- if (two_vars) {
-    x[, 1]
-  } else {
-    x[1, ]
-  }
-  data.frame(
-    coef = coef, rep = seq_along(coef)
-  )
-}
-) |> dplyr::bind_rows(.id = "scenario")
-
-
-coefs_res <- left_join(stata_coefs, icsp2_coef, by = c("scenario", "rep"))
-
-
-library(ggplot2)
-ggplot(
-  coefs_res,
-  aes(
-    x = (b1 + coef)/2,
-    y = b1 - coef,
-  ) 
-) + 
-  geom_hline(colour = rgb(1, 0, 0, 0.5), yintercept = 0, linewidth = 20) +
-  # annotate("ribbon", xmin = -Inf, x=0:1, ymin = -0.0001, ymax = 0.0001, fill = rgb(1, 0, 0, 0.5)) +
-  geom_point(alpha = 0.4) +
-  facet_wrap(~scenario, nrow = 2) +
-  theme_bw() +
-  labs(
-    x = "(stata + R)/2",
-    y = "stata - R"
-  )
-ggsave("icsp2_v_stata.png", dpi = 600, width = 9.15, height = 4.32, units = "in")
-
-
-
-ph_summary <- lapply(seq_along(scenarios), function(j) {
-  coefs <- ph_coefs[[j]]
-  sc <- scenarios[[j]]
-  true_vals <- sc$b_trt[1]
-  if (!is.null(sc$b_age)) true_vals <- c(true_vals, sc$b_age)
-  data.frame(
-    scenario = names(scenarios)[j],
-    covariate = colnames(coefs),
-    icsp2_mean = colMeans(coefs),
-    icsp2_sd = apply(coefs, 2, sd),
-    true_value = true_vals
-  )
-})
-ph_summary <- do.call(rbind, ph_summary)
-rownames(ph_summary) <- NULL
-
-# Merge Stata results if available
-if (!is.null(stata_coefs) && nrow(stata_coefs) > 0) {
-  stata_summary <- lapply(split(stata_coefs, stata_coefs$scenario), function(d) {
-    b_cols <- grep("^b", names(d), value = TRUE)
-    data.frame(
-      scenario = d$scenario[1],
-      covariate = b_cols,
-      stata_mean = colMeans(d[b_cols], na.rm = TRUE),
-      stata_sd = apply(d[b_cols], 2, sd, na.rm = TRUE)
-    )
-  })
-  stata_summary <- do.call(rbind, stata_summary)
-  rownames(stata_summary) <- NULL
-  ph_summary <- merge(ph_summary, stata_summary, by = c("scenario", "covariate"),
-    all.x = TRUE
-  )
-}
-
-ph_summary
-```
-
-### Baseline survival comparison plots
-
-```{r baseline-comparison-plots, fig.width=8, fig.height=10}
-par(mfrow = c(4, 2), mar = c(4, 4, 2, 1))
-
-for (j in seq_along(scenarios)) {
-  sc <- scenarios[[j]]
-  sc_name <- names(scenarios)[j]
-  fit <- ph_results[[j]][[1]]
-
-  strata_pars <- sc$strata_params
-  if (is.null(strata_pars)) strata_pars <- list(list(shape = 2, scale = 2))
-  n_strata <- length(strata_pars)
-
-  x_max <- max(unlist(lapply(fit$intervals, function(int) max(int[is.finite(int)]))))
-
-  plot(fit,
-    main = paste0("S", j, ": ", sc$label),
-    xlim = c(0, x_max),
-    col = rep(seq_len(n_strata), each = 2),
-    lwd = 2
-  )
-
-  # True baseline
-  t_seq <- seq(0, x_max, length.out = 200)
-  for (s in seq_len(n_strata)) {
-    true_surv <- pweibull(t_seq, shape = strata_pars[[s]]$shape,
-      scale = strata_pars[[s]]$scale, lower.tail = FALSE)
-    lines(t_seq, true_surv, col = s, lty = 2, lwd = 2)
-  }
-
-  # Overlay SAS NPMLE if available
-  if (!is.null(sas_npmle)) {
-    sas_sc <- sas_npmle[sas_npmle$scenario == sc_name, ]
-    if (nrow(sas_sc) > 0) {
-      lines(sas_sc$time, sas_sc$survival, col = "blue", lty = 3, lwd = 2)
-    }
-  }
-
-  # Overlay Stata baseline if available
-  if (!is.null(stata_baseline)) {
-    stata_sc <- stata_baseline[stata_baseline$scenario == sc_name, ]
-    if (nrow(stata_sc) > 0) {
-      lines(stata_sc$time_grid, stata_sc$surv0, col = "red", lty = 4, lwd = 2)
-    }
-  }
-
-  legend("topright",
-    legend = c("icsp2", "True", "SAS", "Stata"),
-    lty = c(1, 2, 3, 4), col = c("black", "black", "blue", "red"),
-    lwd = 2, cex = 0.6, bty = "n"
-  )
-}
-```
-
-## IDU Dataset Comparison (Stata)
-
-```{r idu-comparison}
-library(haven)
-idu <- read_dta("./local/idu.dta")
-
-idu_fit <- ic_sp_ph(
-  Surv(ltime, rtime, type = "interval2") ~ age_mean +
-    male +
-    needle +
-    inject +
-    jail,
-  data = idu
-)
-idu_res <- summary(idu_fit)
-within(as.data.frame(idu_res$coef_matrix), {
-  HR <- exp(Estimate)
-  HR_u <- exp(Estimate + 1.96 * Std.Error)
-  HR_l <- exp(Estimate - 1.96 * Std.Error)
-})
 ```
