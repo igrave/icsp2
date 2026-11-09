@@ -491,3 +491,24 @@ test_that("vcov never returns NaN silently", {
     expect_true(all(is.na(v)) || all(diag(v) > 0))
   }
 })
+
+test_that("integer weights match replicated-row fits", {
+  set.seed(7311)
+  n <- 80
+  dat <- data.frame(x = rnorm(n), w = sample(1:4, n, TRUE))
+  t_true <- rexp(n, exp(0.5 * dat$x))
+  dat$l <- floor(t_true * 4) / 4
+  dat$u <- ifelse(runif(n) < 0.2, Inf, dat$l + 0.25)
+  rep_dat <- dat[rep(seq_len(n), dat$w), ]
+  fml <- Surv(l, u, type = "interval2") ~ x
+
+  for (fitter in list(ic_sp_ph, ic_sp_po)) {
+    for (dm in c(12, 1)) {
+      ctl <- ic_sp_control(derivMethod = c(dm, 1))
+      fw <- fitter(fml, data = dat, weights = w, control = ctl, profile_ci = NULL)
+      fr <- fitter(fml, data = rep_dat, control = ctl, profile_ci = NULL)
+      expect_equal(fw$llk, fr$llk, tolerance = 1e-6)
+      expect_equal(unname(coef(fw)), unname(coef(fr)), tolerance = 1e-4)
+    }
+  }
+})

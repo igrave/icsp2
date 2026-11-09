@@ -346,8 +346,8 @@ void icm_Abst::analytical_dobs_dch(int s, std::vector<double> &d1, std::vector<d
             if(std::isnan(derivs[0]) || std::isnan(derivs[1])){
                 Rcpp::Rcout << "NaN detected in analytical_dobs_dch at stratum " << s << ", observation " << obs << std::endl;
             }
-            d1[param] += derivs[0];
-            d2[param] += derivs[1];
+            d1[param] += w[s][obs] * derivs[0];
+            d2[param] += w[s][obs] * derivs[1];
         }
 
         // Right boundary
@@ -363,8 +363,8 @@ void icm_Abst::analytical_dobs_dch(int s, std::vector<double> &d1, std::vector<d
             if(std::isnan(derivs[0]) || std::isnan(derivs[1])){
                 Rcpp::Rcout << "NaN detected in analytical_dobs_dch at stratum " << s << ", observation " << obs << std::endl;
             }
-            d1[param] += derivs[0];
-            d2[param] += derivs[1];
+            d1[param] += w[s][obs] * derivs[0];
+            d2[param] += w[s][obs] * derivs[1];
         }
     }
 }
