@@ -367,7 +367,8 @@ ic_sp_po <- ic_sp2
 #' @param typical A typical value for the regression parameters, used to determine the scale of `h_n`. Default is 1.
 #' This is required for the `"oim_curvature"` type.
 #' @param large A large value for the regression parameters, used to determine the scale of `h_n`. Default is 2.
-#' This is required for the `"oim_curvature"` type.
+#' @param h_max Upper bound on the absolute perturbation size. Default is 0.5.
+#' @param difference `"forward"` (default, original behaviour) or `"central"` finite differences.
 #' @param ... Unused in `vcov()`. In `confint()` it is used to specify the vcov parameters such as `type`, `fixed`, `typical`, and `large`.
 #' @return Variance-covariance matrix of the regression parameters or the confidence interval matrix.
 #' @details
@@ -394,6 +395,18 @@ ic_sp_po <- ic_sp2
 #' instead of the observed information matrix for the covariance calculation.
 #'
 #' For larged values of `fixed` the model fitting may fail to converge.
+#'
+#' All perturbation sizes are capped at `h_max` in absolute value. Without the
+#' cap, `c / sqrt(n)` exceeds 1 at small `n`, where the profile log-likelihood
+#' is far from quadratic and the estimates can be badly biased or `NaN`.
+#'
+#' `difference = "central"` uses central differences (points at `-h`, `0`, `h`),
+#' which have O(h^2) rather than O(h) error and do not rely on the profile score
+#' being exactly zero at the estimate, at the cost of about twice as many
+#' profile fits.
+#'
+#' If the estimated information matrix has non-finite entries or is not
+#' positive definite, a warning is issued and a matrix of `NA` is returned.
 #' 
 #' The `confint()` method gives a Wald type CI and is based on [stats::confint] but allows the pass through of the `vcov.ic_sp2` parameters.
 #'
@@ -412,6 +425,8 @@ vcov.ic_sp2 <- function(
   fixed = 5,
   typical = 1,
   large = 2,
+  h_max = 0.5,
+  difference = c("forward", "central"),
   ...
 ) {
   if (!inherits(object, "ic_sp_ph") && !inherits(object, "ic_sp_po")) {
@@ -420,6 +435,8 @@ vcov.ic_sp2 <- function(
   stopifnot(is.numeric(typical), length(typical) == 1, typical > 0)
   stopifnot(is.numeric(large), length(large) == 1, large > 0)
   stopifnot(is.numeric(fixed), length(fixed) == 1, fixed > 0)
+  stopifnot(is.numeric(h_max), length(h_max) == 1, h_max > 0)
+  difference <- match.arg(difference)
   n <- nrow(object$.dataEnv$data)
   k <- length(object$coefficients)
 
@@ -457,7 +474,32 @@ vcov.ic_sp2 <- function(
     )
   }
 
-  if (type %in% c("oim_fixed", "oim_curvature")) {
+  # Large steps at small n leave the quadratic region of the profile likelihood
+  h <- sign(h) * pmin(abs(h), h_max)
+
+  llk_at <- function(delta) {
+    profile_fit(object, object$coefficients + delta)$llk
+  }
+
+  if (type %in% c("oim_fixed", "oim_curvature") && difference == "central") {
+    inv_cov <- matrix(NA_real_, nrow = k, ncol = k)
+    for (i in seq_len(k)) {
+      for (j in seq(from = i, to = k)) {
+        hij <- h[i, j]
+        e_i <- replace(numeric(k), i, hij)
+        e_j <- replace(numeric(k), j, hij)
+        if (i == j) {
+          inv_cov[i, i] <- -(llk_at(e_i) - 2 * llk_beta + llk_at(-e_i)) / hij^2
+        } else {
+          inv_cov[i, j] <- inv_cov[j, i] <- -(llk_at(e_i + e_j) -
+            llk_at(e_i - e_j) -
+            llk_at(-e_i + e_j) +
+            llk_at(-e_i - e_j)) /
+            (4 * hij^2)
+        }
+      }
+    }
+  } else if (type %in% c("oim_fixed", "oim_curvature")) {
     for (i in seq_len(k)) {
       beta <- object$coefficients
       beta[i] <- beta[i] + h[i, i]
@@ -491,22 +533,50 @@ vcov.ic_sp2 <- function(
     }
   } else if (type == "opg_fixed") {
     d <- matrix(0, nrow = n, ncol = k)
+    subj_at <- function(delta) {
+      unlist(profile_fit(object, object$coefficients + delta)$subj_llk)
+    }
     for (i in seq_len(k)) {
-      beta <- object$coefficients
-      beta[i] <- beta[i] + h[i]
-      new_fit <- profile_fit(object, beta)
-
-      d[, i] <- (unlist(new_fit$subj_llk) - unlist(object$subj_llk)) / h[i]
+      e_i <- replace(numeric(k), i, h[i])
+      if (difference == "central") {
+        d[, i] <- (subj_at(e_i) - subj_at(-e_i)) / (2 * h[i])
+      } else {
+        d[, i] <- (subj_at(e_i) - unlist(object$subj_llk)) / h[i]
+      }
     }
     inv_cov <- t(d) %*% d
   }
-  result <- list()
-  result$inv_cov <- inv_cov
-  result <- solve(inv_cov)
 
-  colnames(result) <- rownames(result) <- names(object$coefficients)
-
+  nms <- names(object$coefficients)
+  dimnames(inv_cov) <- list(nms, nms)
+  result <- invert_information(inv_cov)
+  dimnames(result) <- list(nms, nms)
   result
+}
+
+# Invert an information matrix, warning and returning NA instead of
+# silently producing NaN or negative variances.
+invert_information <- function(info) {
+  na_result <- matrix(NA_real_, nrow(info), ncol(info))
+  if (!all(is.finite(info))) {
+    warning(
+      "Information matrix has non-finite entries; returning NA. ",
+      "Try a smaller `fixed`/`h_max` or `difference = \"central\"`.",
+      call. = FALSE
+    )
+    return(na_result)
+  }
+  info <- (info + t(info)) / 2
+  R <- tryCatch(chol(info), error = function(e) NULL)
+  if (is.null(R)) {
+    warning(
+      "Information matrix is not positive definite; returning NA. ",
+      "Try a smaller `fixed`/`h_max` or `difference = \"central\"`.",
+      call. = FALSE
+    )
+    return(na_result)
+  }
+  chol2inv(R)
 }
 
 #' @rdname vcov.ic_sp2

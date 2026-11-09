@@ -5,7 +5,16 @@
 \alias{confint.ic_sp2}
 \title{Profile Likelihood Variance and Confidence Intervals for Semi-Parametric Models}
 \usage{
-\method{vcov}{ic_sp2}(object, type = "oim_curvature", fixed = 5, typical = 1, large = 2, ...)
+\method{vcov}{ic_sp2}(
+  object,
+  type = "oim_curvature",
+  fixed = 5,
+  typical = 1,
+  large = 2,
+  h_max = 0.5,
+  difference = c("forward", "central"),
+  ...
+)
 
 \method{confint}{ic_sp2}(object, parm, level = 0.95, ...)
 }
@@ -19,8 +28,11 @@
 \item{typical}{A typical value for the regression parameters, used to determine the scale of \code{h_n}. Default is 1.
 This is required for the \code{"oim_curvature"} type.}
 
-\item{large}{A large value for the regression parameters, used to determine the scale of \code{h_n}. Default is 2.
-This is required for the \code{"oim_curvature"} type.}
+\item{large}{A large value for the regression parameters, used to determine the scale of \code{h_n}. Default is 2.}
+
+\item{h_max}{Upper bound on the absolute perturbation size. Default is 0.5.}
+
+\item{difference}{\code{"forward"} (default, original behaviour) or \code{"central"} finite differences.}
 
 \item{...}{Unused in \code{vcov()}. In \code{confint()} it is used to specify the vcov parameters such as \code{type}, \code{fixed}, \code{typical}, and \code{large}.}
 
@@ -58,6 +70,18 @@ parameter and the sample size \code{n}, but uses the outer product of gradients
 instead of the observed information matrix for the covariance calculation.
 
 For larged values of \code{fixed} the model fitting may fail to converge.
+
+All perturbation sizes are capped at \code{h_max} in absolute value. Without the
+cap, \code{c / sqrt(n)} exceeds 1 at small \code{n}, where the profile log-likelihood
+is far from quadratic and the estimates can be badly biased or \code{NaN}.
+
+\code{difference = "central"} uses central differences (points at \code{-h}, \code{0}, \code{h}),
+which have O(h^2) rather than O(h) error and do not rely on the profile score
+being exactly zero at the estimate, at the cost of about twice as many
+profile fits.
+
+If the estimated information matrix has non-finite entries or is not
+positive definite, a warning is issued and a matrix of \code{NA} is returned.
 
 The \code{confint()} method gives a Wald type CI and is based on \link[stats:confint]{stats::confint} but allows the pass through of the \code{vcov.ic_sp2} parameters.
 }

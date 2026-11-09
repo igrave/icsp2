@@ -417,3 +417,77 @@ test_that("confint works as expected", {
   )
   expect_equal(ci_res, ci_expected, tolerance = 1e-6)
 })
+test_that("invert_information warns and returns NA for bad matrices", {
+  expect_warning(
+    v <- invert_information(matrix(c(1, NaN, NaN, 1), 2)),
+    "non-finite"
+  )
+  expect_true(all(is.na(v)))
+  expect_warning(
+    v <- invert_information(matrix(c(1, 2, 2, 1), 2)),
+    "not positive definite"
+  )
+  expect_true(all(is.na(v)))
+  m <- matrix(c(2, 0.5, 0.5, 1), 2)
+  expect_equal(invert_information(m), solve(m))
+})
+
+test_that("vcov central differences agree with a fine central-difference reference", {
+  set.seed(5309)
+  sim_data <- simIC_weib(n = 500, inspections = 5, inspectLength = 1)
+  fit <- ic_sp_ph(Surv(l, u, type = "interval2") ~ x1 + x2, data = sim_data)
+
+  pl <- function(d) profile_fit(fit, fit$coefficients + d)$llk
+  h <- 0.02
+  E <- diag(h, 2)
+  info <- matrix(0, 2, 2)
+  for (i in 1:2) {
+    info[i, i] <- -(pl(E[i, ]) - 2 * fit$llk + pl(-E[i, ])) / h^2
+  }
+  info[1, 2] <- info[2, 1] <- -(pl(E[1, ] + E[2, ]) - pl(E[1, ] - E[2, ]) -
+    pl(-E[1, ] + E[2, ]) + pl(-E[1, ] - E[2, ])) / (4 * h^2)
+  se_ref <- sqrt(diag(solve(info)))
+
+  for (type in c("oim_curvature", "oim_fixed")) {
+    for (difference in c("forward", "central")) {
+      v <- vcov(fit, type = type, difference = difference)
+      expect_true(all(abs(sqrt(diag(v)) / se_ref - 1) < 0.05))
+    }
+  }
+  v <- vcov(fit, difference = "central")
+  expect_equal(rownames(v), c("x1", "x2"))
+})
+
+test_that("h_max caps the step and a large h_max reproduces the uncapped result", {
+  set.seed(4471)
+  sim_data <- simIC_weib(n = 50, inspections = 5, inspectLength = 1)
+  fit <- ic_sp_ph(Surv(l, u, type = "interval2") ~ x1 + x2, data = sim_data)
+  # fixed / sqrt(n) = 0.71 > h_max, so the cap changes the result
+  capped <- vcov(fit, type = "oim_fixed", fixed = 5)
+  uncapped <- suppressWarnings(
+    vcov(fit, type = "oim_fixed", fixed = 5, h_max = Inf)
+  )
+  smaller <- vcov(fit, type = "oim_fixed", fixed = 0.5 * sqrt(50))
+  expect_equal(capped, smaller)
+  expect_false(isTRUE(all.equal(capped, uncapped)))
+})
+
+test_that("vcov never returns NaN silently", {
+  set.seed(8812)
+  n <- 25
+  sim_data <- simIC_weib(n = n, inspections = 5, inspectLength = 1)
+  sim_data[paste0("z", 1:6)] <- matrix(rnorm(n * 6), n)
+  fit <- suppressWarnings(ic_sp_ph(
+    Surv(l, u, type = "interval2") ~ x1 + x2 + z1 + z2 + z3 + z4 + z5 + z6,
+    data = sim_data,
+    control = ic_sp_control(maxIter = 250)
+  ))
+  for (fixed in c(1, 5, 10)) {
+    v <- withCallingHandlers(
+      vcov(fit, type = "oim_fixed", fixed = fixed, h_max = Inf),
+      warning = function(w) invokeRestart("muffleWarning")
+    )
+    expect_false(any(is.nan(v)))
+    expect_true(all(is.na(v)) || all(diag(v) > 0))
+  }
+})
