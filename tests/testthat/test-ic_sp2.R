@@ -360,6 +360,32 @@ test_that("PH model works with profile_ci", {
   expect_equal(unname(ci_res_1), unname(ci_res_2), tolerance = 1e-2)
 })
 
+
+
+test_that("profile_ci lower and upper bounds are consistent", {
+  set.seed(1998)
+  n <- 25
+  sim_data <- simIC_weib(
+    n = n, inspections = 3, inspectLength = 0.6, b1 = 0.95, b2 = -0.5
+  )
+  z <- as.data.frame(matrix(rnorm(n * 6), nrow = n, ncol = 6))
+  colnames(z) <- paste0("z", 1:6)
+  sim_data <- cbind(sim_data, z)
+
+  fit <- ic_sp_ph(
+    Surv(l, u, type = "interval2") ~ x1 + x2 + z1 + z2 + z3 + z4 + z5 + z6,
+    data = sim_data,
+    profile_ci = 0.95
+  )
+  ci <- fit$profile_ci
+  b <- coef(fit)
+
+  expect_true(all(ci[, "lower"] < b))
+  expect_true(all(ci[, "upper"] > b))
+  expect_true(all(ci[, "upper"] - ci[, "lower"] > 0))
+})
+
+
 test_that("confint works as expected", {
   set.seed(1950)
   sim_data <- simIC_weib(n = 500, inspections = 3, inspectLength = 1)
