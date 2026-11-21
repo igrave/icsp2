@@ -54,7 +54,6 @@ void icm_Abst::profile_llk_search(double target_llk, double ref_llk, int cov_i, 
       }
     }
     if (fb >= 0) { 
-      // Profile likelihood never drops to the target: interval is unbounded
       reg_par[cov_i] = (direction == 0 ? R_NegInf : R_PosInf); 
       profile_cov_idx = -1; 
       return; 

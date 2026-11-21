@@ -246,9 +246,6 @@ public:
         return(term1 * term2 + 3 * term1_sq * term2 + term1 * term1_sq * term2);
     }
 
-	// Shift baseCH so its last node is 2, absorbing the shift into the intercept.
-	// Likelihood-preserving in exact arithmetic, but rounding can collapse a near-zero
-	// interval probability to 0 (llk = -Inf), which ICM cannot recover from; revert if so.
 	void stablizeBCH() override {
         auto baseCH_bak = baseCH;
         std::vector<double> intercept_bak = intercept;
@@ -261,7 +258,6 @@ public:
 	    	} 
         }
         update_etas();
-        // If llk was already non-finite, reverting is a harmless no-op
         if (!R_FINITE(sum_llk_all())) {
             baseCH = baseCH_bak;
             intercept = intercept_bak;
