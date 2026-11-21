@@ -181,6 +181,13 @@ public:
     int numBaselineIts;
     bool useFullHess;
     int profile_cov_idx = -1;  // index of fixed covariate during profile likelihood (-1 = none)
+    // Diagnostics recorded instead of printed so run() is safe inside OpenMP
+    // regions; callers report them from the main thread.
+    double max_llk_decrease = 0.0;
+    bool nonneg_hess_diag = false;
+    // Not atomic: dllk_dp_i is only called serially within an object
+    // (gradientDescent_step's strata loop is not parallelised).
+    int n_dllk_dp_nan = 0;
     
     double exchangeAndUpdate(double delta, int i1, int i2);
     // REQUIRES baseP BEING UP TO DATE!!!
@@ -319,7 +326,7 @@ public:
         }
        
         if (ISNAN(ans)) {
-            Rcpp::Rcout << "Warning: dllk_dp_i returned NaN!" << std::endl;
+            n_dllk_dp_nan++;
             ans = 0.0;
         }
         return(ans);

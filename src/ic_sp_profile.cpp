@@ -33,7 +33,7 @@ static double profile_target_wrapper(double try_cov, void* info) {
 void icm_Abst::profile_llk_search(double target_llk, double ref_llk, int cov_i, int direction){ 
     double diag = -reg_d2(cov_i, cov_i); 
     if (diag <= 0.0) { 
-        Rprintf("warning: non-negative Hessian diagonal for covariate %d\n", cov_i); 
+        nonneg_hess_diag = true;
         return; 
     } 
     double fa = ref_llk - target_llk; 

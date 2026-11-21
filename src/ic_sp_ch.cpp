@@ -374,7 +374,7 @@ void icm_Abst::analytical_dobs_dch(int s, std::vector<double> &d1, std::vector<d
 
 void icm_Abst::icm_step(){
 #ifdef _OPENMP
-#pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for schedule(dynamic) if(n_strata > 1)
 #endif
     for(int s = 0; s < n_strata; s++){
         icm_step_s(s);
@@ -776,9 +776,21 @@ SEXP ic_sp_ch(SEXP Rlind, SEXP Rrind, SEXP Rcovars, SEXP fitType,
         throw Rcpp::exception("Final log-likelihood is -Inf.");
     }
     
+    if (optObj->max_llk_decrease > 0) {
+        Rprintf("warning: likelihood decreased! max difference = %f\n", -optObj->max_llk_decrease);
+        optObj->max_llk_decrease = 0.0;
+    }
+    if (optObj->n_dllk_dp_nan > 0) {
+        Rprintf("Warning: dllk_dp_i returned NaN %d time(s); replaced with 0.\n", optObj->n_dllk_dp_nan);
+        optObj->n_dllk_dp_nan = 0;
+    }
+
     // Profile likelihood confidence intervals
     int n_reg = optObj->reg_par.size();
     std::vector<std::vector<double>> prof_ci_mat(n_reg, std::vector<double>(2, NA_REAL));
+    std::vector<double> prof_llk_decrease(2 * n_reg, 0.0);
+    std::vector<int> prof_nonneg_diag(2 * n_reg, 0);
+    std::vector<int> prof_dllk_nan(2 * n_reg, 0);
     double profileCI_diff = Rcpp::as<double>(R_profileCI_diff);
     if (profileCI_diff > 0) {
         double target_llk = llk_new - profileCI_diff;
@@ -790,7 +802,26 @@ SEXP ic_sp_ch(SEXP Rlind, SEXP Rrind, SEXP Rcovars, SEXP fitType,
                 icm_Abst* profObj = optObj->clone();
                 profObj->profile_llk_search(target_llk, llk_new, i, dir);
                 prof_ci_mat[i][dir] = profObj->reg_par[i];
+                prof_llk_decrease[2 * i + dir] = profObj->max_llk_decrease;
+                prof_nonneg_diag[2 * i + dir] = profObj->nonneg_hess_diag;
+                prof_dllk_nan[2 * i + dir] = profObj->n_dllk_dp_nan;
                 delete profObj;
+            }
+        }
+        for (int i = 0; i < n_reg; i++) {
+            // Both directions share the same Hessian check; report once
+            if (prof_nonneg_diag[2 * i]) {
+                Rprintf("warning: non-negative Hessian diagonal for covariate %d\n", i);
+            }
+            for (int dir = 0; dir < 2; dir++) {
+                if (prof_llk_decrease[2 * i + dir] > 0) {
+                    Rprintf("warning: likelihood decreased in profile search (covariate %d, %s)! max difference = %f\n",
+                            i, dir == 0 ? "lower" : "upper", -prof_llk_decrease[2 * i + dir]);
+                }
+                if (prof_dllk_nan[2 * i + dir] > 0) {
+                    Rprintf("Warning: dllk_dp_i returned NaN %d time(s) in profile search (covariate %d, %s); replaced with 0.\n",
+                            prof_dllk_nan[2 * i + dir], i, dir == 0 ? "lower" : "upper");
+                }
             }
         }
     }
@@ -928,8 +959,8 @@ double icm_Abst::run(int maxIter, double tol, bool useGD, int baselineUpdates){
             }
         }
  
-       if((llk_new - llk_old) < -0.001 ){
-           Rprintf("warning: likelihood decreased! difference = %f\n", llk_new - llk_old);
+       if((llk_new - llk_old) < -0.001 && (llk_old - llk_new) > max_llk_decrease){
+           max_llk_decrease = llk_old - llk_new;
        }
     }
     
