@@ -21,7 +21,9 @@
 #include <stdio.h>
 #include <vector>
 #include <cmath>
+#ifdef _OPENMP
 #include <omp.h>
+#endif
 #include <RcppEigen.h>
 using namespace Rcpp;
 using namespace Eigen;
@@ -245,6 +247,8 @@ public:
     }
 
 	void stablizeBCH() override {
+        auto baseCH_bak = baseCH;
+        std::vector<double> intercept_bak = intercept;
         for(int s = 0; s < n_strata; s++){
             int k = baseCH[s].size();
 		    double thisChange = baseCH[s][k-2] - 2.0;
@@ -254,6 +258,11 @@ public:
 	    	} 
         }
         update_etas();
+        if (!R_FINITE(sum_llk_all())) {
+            baseCH = baseCH_bak;
+            intercept = intercept_bak;
+            update_etas();
+        }
 	}
 	
     double dllk_dp_i(double s_l, double s_r, double eta, double pob, bool left, bool right) override {
