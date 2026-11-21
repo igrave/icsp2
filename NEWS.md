@@ -1,4 +1,5 @@
 # icsp2 0.2.0
+* Improve reliability of CI and variance calculations
 
 # icsp2 0.1.0
 
