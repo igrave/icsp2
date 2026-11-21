@@ -38,15 +38,26 @@ void icm_Abst::profile_llk_search(double target_llk, double ref_llk, int cov_i, 
     } 
     double fa = ref_llk - target_llk; 
     double ax = reg_par[cov_i]; 
-    double step = 1.1 * 2 * fa / sqrt(diag) * (direction == 0 ? -1.0 : 1.0); 
-    double bx = ax + step; 
- 
+    double dir_sign = (direction == 0 ? -1.0 : 1.0); 
+    double bx = ax + dir_sign * 1.1 * sqrt(2.0 * fa / diag); 
+
     ProfileInfo info = { this, cov_i, target_llk }; 
  
-    double fb = 1; 
-    while (fb >= 0) { 
+    double fb = 1;
+    int n_expand = 0; 
+    const int max_expand = 50; 
+    while (fb >= 0 && n_expand < max_expand) { 
       fb = profile_target_wrapper(bx, &info);  // should be < 0 (past boundary) 
-      if (fb >= 0) bx += 0.5/sqrt(diag); 
+      if (fb >= 0) {
+        bx += dir_sign * 0.5 / sqrt(diag); 
+        n_expand++;
+      }
+    }
+    if (fb >= 0) { 
+      // Profile likelihood never drops to the target: interval is unbounded
+      reg_par[cov_i] = (direction == 0 ? R_NegInf : R_PosInf); 
+      profile_cov_idx = -1; 
+      return; 
     } 
     double tol = 1e-6; 
     int maxit = 50; 
